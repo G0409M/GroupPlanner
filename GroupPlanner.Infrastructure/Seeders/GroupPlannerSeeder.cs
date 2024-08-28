@@ -23,8 +23,8 @@ namespace GroupPlanner.Infrastructure.Seeders
                     var T1 = new Domain.Entities.Task()
                     {
                         Name = "Projekt z Ekonometrii",
-                      TaskType = "Projekt",
-                      Details = new Domain.Entities.TaskDetails()
+                      TaskType = Domain.Entities.TaskType.Zadanie,
+                        Details = new Domain.Entities.TaskDetails()
                       {
                           Description= "Projekt zaliczeniowy",
                           Deadline = DateTime.UtcNow.AddDays(10)

@@ -38,9 +38,8 @@ namespace GroupPlanner.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("TaskType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("TaskType")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 

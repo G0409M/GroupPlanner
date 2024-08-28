@@ -21,7 +21,7 @@ namespace GroupPlanner.Infrastructure.Migrations
                     Details_Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Details_CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Details_Deadline = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    TaskType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    TaskType = table.Column<int>(type: "int", nullable: false),
                     EncodedName = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>

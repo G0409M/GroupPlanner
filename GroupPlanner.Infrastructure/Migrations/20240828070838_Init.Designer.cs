@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroupPlanner.Infrastructure.Migrations
 {
     [DbContext(typeof(GroupPlannerDbContext))]
-    [Migration("20240828065048_Init")]
+    [Migration("20240828070838_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -41,9 +41,8 @@ namespace GroupPlanner.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("TaskType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("TaskType")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
