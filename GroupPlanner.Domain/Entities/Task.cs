@@ -8,9 +8,10 @@ namespace GroupPlanner.Domain.Entities
 {
     public class Task
     {
-        public required int Id { get; set; }
+        public  int Id { get; set; }
         public string Name { get; set; } = default!;
         public TaskDetails Details { get; set; } = default!;
+        public string TaskType { get; set; } = default!;
         public string EncodedName { get; private set; } = default!;
 
         public void EncodeName() => EncodedName = Name.ToLower().Replace(" ", "-");

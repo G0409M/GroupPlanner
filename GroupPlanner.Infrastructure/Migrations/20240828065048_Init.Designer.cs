@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroupPlanner.Infrastructure.Migrations
 {
     [DbContext(typeof(GroupPlannerDbContext))]
-    [Migration("20240827200129_init")]
-    partial class init
+    [Migration("20240828065048_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -38,6 +38,10 @@ namespace GroupPlanner.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TaskType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
