@@ -1,4 +1,6 @@
-﻿using GroupPlanner.Infrastructure.Persistance;
+﻿using GroupPlanner.Domain.Interfaces;
+using GroupPlanner.Infrastructure.Persistance;
+using GroupPlanner.Infrastructure.Repositories;
 using GroupPlanner.Infrastructure.Seeders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +19,10 @@ namespace GroupPlanner.Infrastructure.Extensions
         {
             services.AddDbContext<GroupPlannerDbContext>(options => options.UseSqlServer(
                 configuration.GetConnectionString("GroupPlanner")));
+
             services.AddScoped<GroupPlannerSeeder>();
+
+            services.AddScoped<ITaskRepository, TaskRepository>();
 
         }
     }

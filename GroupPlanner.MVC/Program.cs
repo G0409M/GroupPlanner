@@ -3,6 +3,7 @@ using GroupPlanner.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 using System.Net.WebSockets;
 using GroupPlanner.Infrastructure.Seeders;
+using GroupPlanner.Application.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddInfrastructure(builder.Configuration);
-
+builder.Services.AddApplication();
 var app = builder.Build();
 var scope = app.Services.CreateScope();
 var seeder = scope.ServiceProvider.GetRequiredService<GroupPlannerSeeder>();
