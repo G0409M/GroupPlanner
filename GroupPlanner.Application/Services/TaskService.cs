@@ -17,6 +17,7 @@ namespace GroupPlanner.Application.Services
         public async Task Create(Domain.Entities.Task task)
         {
             task.EncodeName();
+            task.Details.CreatedAt = DateTime.Now;
             await _taskRepository.Create(task);
         }
     }

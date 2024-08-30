@@ -18,7 +18,7 @@ namespace GroupPlanner.Domain.Entities
     {
         public  int Id { get; set; }
         public string Name { get; set; } = default!;
-        public TaskDetails Details { get; set; } = default!;
+        public TaskDetails Details { get; set; } = new TaskDetails();
         public TaskType TaskType { get; set; } = default!;
         public string EncodedName { get; private set; } = default!;
 
