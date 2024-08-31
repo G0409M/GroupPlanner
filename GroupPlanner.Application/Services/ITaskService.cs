@@ -2,11 +2,12 @@
 
 
 
+using GroupPlanner.Application.Task;
 
 namespace GroupPlanner.Application.Services
 {
     public interface ITaskService
     {
-        Task Create(Domain.Entities.Task task);
+        System.Threading.Tasks.Task Create(TaskDto task);
     }
 }
