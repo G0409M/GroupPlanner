@@ -1,5 +1,5 @@
-﻿using GroupPlanner.Application.Services;
-using GroupPlanner.Application.Task;
+﻿using GroupPlanner.Application.Dto.Task;
+using GroupPlanner.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GroupPlanner.MVC.Controllers
@@ -18,6 +18,10 @@ namespace GroupPlanner.MVC.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(TaskDto task)
         {
+            if(!ModelState.IsValid)
+            {
+                return View(task);
+            }
             await _taskService.Create(task);
             return RedirectToAction(nameof(Create)); // refactor in future
         }

@@ -1,5 +1,6 @@
 ﻿using GroupPlanner.Domain.Interfaces;
 using GroupPlanner.Infrastructure.Persistance;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,5 +21,7 @@ namespace GroupPlanner.Infrastructure.Repositories
             _dbContext.Add(task);
             await _dbContext.SaveChangesAsync();
         }
+        public Task<Domain.Entities.Task> GetByName(string name)
+            => _dbContext.Tasks.FirstOrDefaultAsync(cw=> cw.Name.ToLower()==name.ToLower());
     }
 }

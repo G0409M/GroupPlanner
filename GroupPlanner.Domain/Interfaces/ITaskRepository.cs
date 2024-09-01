@@ -9,5 +9,7 @@ namespace GroupPlanner.Domain.Interfaces
     public interface ITaskRepository
     {
         Task Create(Domain.Entities.Task task);
+
+        Task<Domain.Entities.Task> GetByName(string name);
     }
 }

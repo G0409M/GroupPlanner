@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using GroupPlanner.Application.Task;
+using GroupPlanner.Application.Dto.Task;
 using GroupPlanner.Domain.Entities;
 using System;
 using System.Collections.Generic;

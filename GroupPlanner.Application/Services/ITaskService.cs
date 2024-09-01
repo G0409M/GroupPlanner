@@ -2,7 +2,7 @@
 
 
 
-using GroupPlanner.Application.Task;
+using GroupPlanner.Application.Dto.Task;
 
 namespace GroupPlanner.Application.Services
 {

@@ -1,4 +1,7 @@
-﻿using GroupPlanner.Application.Mapping;
+﻿using FluentValidation;
+using FluentValidation.AspNetCore;
+using GroupPlanner.Application.Dto.Task;
+using GroupPlanner.Application.Mapping;
 using GroupPlanner.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -14,7 +17,12 @@ namespace GroupPlanner.Application.Extensions
         public static void AddApplication(this IServiceCollection services)
         {
             services.AddScoped<ITaskService, TaskService>();
+
             services.AddAutoMapper(typeof(TaskMappingProfile));
+
+            services.AddValidatorsFromAssemblyContaining<TaskValidator>()
+                .AddFluentValidationAutoValidation()
+                .AddFluentValidationClientsideAdapters();
         }
     }
 }

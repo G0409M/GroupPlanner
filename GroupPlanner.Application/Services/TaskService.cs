@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using GroupPlanner.Application.Task;
+using GroupPlanner.Application.Dto.Task;
 using GroupPlanner.Domain.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -25,5 +25,6 @@ namespace GroupPlanner.Application.Services
             task.Details.CreatedAt = DateTime.Now;
             await _taskRepository.Create(task);
         }
+
     }
 }
