@@ -18,7 +18,11 @@ namespace GroupPlanner.Application.Dto.Task
                 .MaximumLength(50)
                 .Custom((value,context)=>
                 {
-                    var existingTask = repository.GetByName(value);
+                    var existingTask = repository.GetByName(value).Result;
+                    if(existingTask != null)
+                    {
+                        context.AddFailure($"{value} is not unique.");
+                    }
                 });
 
             RuleFor(c => c.Description)

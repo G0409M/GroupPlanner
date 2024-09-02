@@ -21,7 +21,11 @@ namespace GroupPlanner.Infrastructure.Repositories
             _dbContext.Add(task);
             await _dbContext.SaveChangesAsync();
         }
-        public Task<Domain.Entities.Task> GetByName(string name)
+
+        public async Task<IEnumerable<Domain.Entities.Task?>> GetAll()
+            => await _dbContext.Tasks.ToListAsync();
+
+        public Task<Domain.Entities.Task?> GetByName(string name)
             => _dbContext.Tasks.FirstOrDefaultAsync(cw=> cw.Name.ToLower()==name.ToLower());
     }
 }

@@ -11,6 +11,11 @@ namespace GroupPlanner.MVC.Controllers
         {
             _taskService = taskService;
         }
+        public async Task<IActionResult> Index()
+        {
+            var task =  await _taskService.GetAll();
+            return View(task);
+        }
         public IActionResult Create()
         {
             return View();
@@ -23,7 +28,7 @@ namespace GroupPlanner.MVC.Controllers
                 return View(task);
             }
             await _taskService.Create(task);
-            return RedirectToAction(nameof(Create)); // refactor in future
+            return RedirectToAction(nameof(Index));
         }
 
     }

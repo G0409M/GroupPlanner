@@ -10,6 +10,8 @@ namespace GroupPlanner.Domain.Interfaces
     {
         Task Create(Domain.Entities.Task task);
 
-        Task<Domain.Entities.Task> GetByName(string name);
+        Task<Domain.Entities.Task?> GetByName(string name);
+
+        Task<IEnumerable<Domain.Entities.Task?>> GetAll();
     }
 }

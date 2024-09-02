@@ -19,7 +19,9 @@ namespace GroupPlanner.Application.Mapping
                     Description= src.Description,
                     Deadline= src.Deadline,
                 }));
-
+            CreateMap<Domain.Entities.Task, TaskDto>()
+                .ForMember(dto => dto.Description, opt => opt.MapFrom(src => src.Details.Description))
+                .ForMember(dto => dto.Deadline, opt => opt.MapFrom(src => src.Details.Deadline));
         }
     }
 }

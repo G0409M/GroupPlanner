@@ -26,5 +26,11 @@ namespace GroupPlanner.Application.Services
             await _taskRepository.Create(task);
         }
 
+        public async Task<IEnumerable<TaskDto>> GetAll()
+        {
+            var tasks =  await _taskRepository.GetAll();
+            var dtos = _mapper.Map<IEnumerable<TaskDto>>(tasks);
+            return dtos;
+        }
     }
 }
