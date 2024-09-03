@@ -1,8 +1,8 @@
 ﻿using FluentValidation;
 using FluentValidation.AspNetCore;
-using GroupPlanner.Application.Dto.Task;
 using GroupPlanner.Application.Mapping;
-using GroupPlanner.Application.Services;
+using GroupPlanner.Application.Task.Commands.CreateTask;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -16,11 +16,11 @@ namespace GroupPlanner.Application.Extensions
     {
         public static void AddApplication(this IServiceCollection services)
         {
-            services.AddScoped<ITaskService, TaskService>();
+            services.AddMediatR(typeof(CreateTaskCommand));
 
             services.AddAutoMapper(typeof(TaskMappingProfile));
 
-            services.AddValidatorsFromAssemblyContaining<TaskValidator>()
+            services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>()
                 .AddFluentValidationAutoValidation()
                 .AddFluentValidationClientsideAdapters();
         }

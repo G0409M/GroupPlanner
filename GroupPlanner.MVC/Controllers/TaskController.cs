@@ -1,19 +1,22 @@
 ﻿using GroupPlanner.Application.Dto.Task;
-using GroupPlanner.Application.Services;
+using GroupPlanner.Application.Task.Commands.CreateTask;
+using GroupPlanner.Application.Task.Queries.GetAllTasks;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GroupPlanner.MVC.Controllers
 {
     public class TaskController:Controller
     {
-        private readonly ITaskService _taskService;
-        public TaskController(ITaskService taskService)
+        private readonly IMediator _mediator;
+
+        public TaskController(IMediator mediator)
         {
-            _taskService = taskService;
+            _mediator = mediator;
         }
         public async Task<IActionResult> Index()
         {
-            var task =  await _taskService.GetAll();
+            var task = await _mediator.Send(new GetAllTasksQuery());
             return View(task);
         }
         public IActionResult Create()
@@ -21,13 +24,13 @@ namespace GroupPlanner.MVC.Controllers
             return View();
         }
         [HttpPost]
-        public async Task<IActionResult> Create(TaskDto task)
+        public async Task<IActionResult> Create(CreateTaskCommand commad)
         {
             if(!ModelState.IsValid)
             {
-                return View(task);
+                return View(commad);
             }
-            await _taskService.Create(task);
+            await _mediator.Send(commad);
             return RedirectToAction(nameof(Index));
         }
 
