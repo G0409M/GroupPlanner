@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using GroupPlanner.Application.Dto.Task;
 using GroupPlanner.Domain.Interfaces;
 using MediatR;
 using System;

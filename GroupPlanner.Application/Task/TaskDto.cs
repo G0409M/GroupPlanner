@@ -6,14 +6,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GroupPlanner.Application.Dto.Task
+namespace GroupPlanner.Application.Task
 {
     public class TaskDto
     {
-       
+
         public string Name { get; set; } = default!;
         public TaskType TaskType { get; set; } = default!;
         public string? Description { get; set; }
         public DateTime? Deadline { get; set; }
+        public string? EncodedName { get; set; }
     }
 }

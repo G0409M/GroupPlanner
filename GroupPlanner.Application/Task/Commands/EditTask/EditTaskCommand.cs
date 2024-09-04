@@ -5,9 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GroupPlanner.Application.Task.Queries.GetAllTasks
+namespace GroupPlanner.Application.Task.Commands.EditTask
 {
-    public class GetAllTasksQuery: IRequest<IEnumerable<TaskDto>>
+    public class EditTaskCommand:TaskDto, IRequest
     {
+
     }
 }

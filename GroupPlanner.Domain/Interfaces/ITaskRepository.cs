@@ -13,5 +13,9 @@ namespace GroupPlanner.Domain.Interfaces
         Task<Domain.Entities.Task?> GetByName(string name);
 
         Task<IEnumerable<Domain.Entities.Task?>> GetAll();
+
+        Task<Domain.Entities.Task?> GetByEncodedName(string encodedName);
+        Task Commit();
+
     }
 }

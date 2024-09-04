@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
-using GroupPlanner.Application.Dto.Task;
+using GroupPlanner.Application.Task;
+using GroupPlanner.Application.Task.Commands.EditTask;
 using GroupPlanner.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -22,6 +23,7 @@ namespace GroupPlanner.Application.Mapping
             CreateMap<Domain.Entities.Task, TaskDto>()
                 .ForMember(dto => dto.Description, opt => opt.MapFrom(src => src.Details.Description))
                 .ForMember(dto => dto.Deadline, opt => opt.MapFrom(src => src.Details.Deadline));
+            CreateMap<TaskDto, EditTaskCommand>();
         }
     }
 }

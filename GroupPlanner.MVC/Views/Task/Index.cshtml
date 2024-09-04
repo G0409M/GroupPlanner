@@ -1,5 +1,5 @@
-﻿@model IEnumerable<GroupPlanner.Application.Dto.Task.TaskDto>
-
+﻿@using GroupPlanner.Application.Task
+@model IEnumerable<TaskDto>
 @{
     ViewData["Title"] = "Index";
 }
@@ -7,7 +7,7 @@
 <h1>Tasks</h1>
 
 <p>
-    <a asp-action="Create" class="btn btn-secondary">Create New</a>
+    <a asp-action="Create" class="btn btn-secondary"> Create New </a>
 </p>
 <div class="row">
     @foreach(var item in Model)
@@ -18,8 +18,8 @@
                 <h6 class="card-subtitle mb-2 text-muted">@item.Deadline</h6>
                 <p class="card-text">@item.Description</p>
                 <p class="card-text">@item.TaskType</p>
-                <a href="#" class="btn btn-primary">Details</a>
-                <a href="#" class="btn btn-outline-secondary">Edit</a>
+                <a class="btn btn-primary" asp-controller="Task" asp-action="Details" asp-route-encodedName="@item.EncodedName">Details</a>
+                <a class="btn btn-outline-secondary" asp-controller="Task" asp-action="Edit" asp-route-encodedName="@item.EncodedName">Edit</a>
             </div>
         </div>
     }
