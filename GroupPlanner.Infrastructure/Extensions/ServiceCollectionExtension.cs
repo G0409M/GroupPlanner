@@ -2,6 +2,7 @@
 using GroupPlanner.Infrastructure.Persistance;
 using GroupPlanner.Infrastructure.Repositories;
 using GroupPlanner.Infrastructure.Seeders;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,9 @@ namespace GroupPlanner.Infrastructure.Extensions
         {
             services.AddDbContext<GroupPlannerDbContext>(options => options.UseSqlServer(
                 configuration.GetConnectionString("GroupPlanner")));
+
+            services.AddDefaultIdentity<IdentityUser>()
+              .AddEntityFrameworkStores<GroupPlannerDbContext>();
 
             services.AddScoped<GroupPlannerSeeder>();
 

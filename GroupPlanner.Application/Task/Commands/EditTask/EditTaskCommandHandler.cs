@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace GroupPlanner.Application.Task.Commands.EditTask
 {
-    public class EditTaskCommandHandler : IRequestHandler<EditTaskCommand>
+    internal class EditTaskCommandHandler : IRequestHandler<EditTaskCommand>
     {
         private readonly ITaskRepository _repository;
 
@@ -19,7 +19,6 @@ namespace GroupPlanner.Application.Task.Commands.EditTask
         public async Task<Unit> Handle(EditTaskCommand request, CancellationToken cancellationToken)
         {
             var task = await _repository.GetByEncodedName(request.EncodedName!);
-            task.Name = request.Name;
             task.TaskType = request.TaskType;
             task.Details.Description = request.Description;
             task.Details.Deadline = request.Deadline;
