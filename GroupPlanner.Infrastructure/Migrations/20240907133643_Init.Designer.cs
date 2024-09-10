@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroupPlanner.Infrastructure.Migrations
 {
     [DbContext(typeof(GroupPlannerDbContext))]
-    [Migration("20240906093348_Identity")]
-    partial class Identity
+    [Migration("20240907133643_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,6 +33,9 @@ namespace GroupPlanner.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("EncodedName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -45,6 +48,8 @@ namespace GroupPlanner.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
 
                     b.ToTable("Tasks");
                 });
@@ -194,10 +199,12 @@ namespace GroupPlanner.Infrastructure.Migrations
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
                     b.Property<string>("LoginProvider")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ProviderKey")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("nvarchar(max)");
@@ -234,10 +241,12 @@ namespace GroupPlanner.Infrastructure.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("LoginProvider")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("Name")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("Value")
                         .HasColumnType("nvarchar(max)");
@@ -249,6 +258,10 @@ namespace GroupPlanner.Infrastructure.Migrations
 
             modelBuilder.Entity("GroupPlanner.Domain.Entities.Task", b =>
                 {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById");
+
                     b.OwnsOne("GroupPlanner.Domain.Entities.TaskDetails", "Details", b1 =>
                         {
                             b1.Property<int>("TaskId")
@@ -270,6 +283,8 @@ namespace GroupPlanner.Infrastructure.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("TaskId");
                         });
+
+                    b.Navigation("CreatedBy");
 
                     b.Navigation("Details")
                         .IsRequired();

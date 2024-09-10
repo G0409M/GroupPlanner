@@ -4,6 +4,7 @@ using GroupPlanner.Application.Task.Commands.EditTask;
 using GroupPlanner.Application.Task.Queries.GetAllTasks;
 using GroupPlanner.Application.Task.Queries.GetTaskByEncodedName;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GroupPlanner.MVC.Controllers
@@ -34,6 +35,10 @@ namespace GroupPlanner.MVC.Controllers
         public async Task<IActionResult> Edit(string encodedName)
         {
             var dto = await _mediator.Send(new GetTaskByEncodedNameQuery(encodedName));
+            if(!dto.IsEditable)
+            {
+                return RedirectToAction("NoAccess", "Home");
+            }
             EditTaskCommand model = _mapper.Map<EditTaskCommand>(dto);
             return View(model);
         }
@@ -49,11 +54,18 @@ namespace GroupPlanner.MVC.Controllers
             await _mediator.Send(commad);
             return RedirectToAction(nameof(Index));
         }
+        [Authorize]
         public IActionResult Create()
         {
+            if(!User.IsInRole("Owner"))
+            {
+                return RedirectToAction("NoAccess", "Home");
+            }
             return View();
         }
+
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Create(CreateTaskCommand commad)
         {
             if(!ModelState.IsValid)

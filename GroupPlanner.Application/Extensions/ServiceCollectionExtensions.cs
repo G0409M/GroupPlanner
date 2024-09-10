@@ -1,14 +1,11 @@
-﻿using FluentValidation;
+﻿using AutoMapper;
+using FluentValidation;
 using FluentValidation.AspNetCore;
+using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.Mapping;
 using GroupPlanner.Application.Task.Commands.CreateTask;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GroupPlanner.Application.Extensions
 {
@@ -16,7 +13,17 @@ namespace GroupPlanner.Application.Extensions
     {
         public static void AddApplication(this IServiceCollection services)
         {
+            services.AddScoped<IUserContext, UserContext>();
             services.AddMediatR(typeof(CreateTaskCommand));
+
+            services.AddScoped(provider => new MapperConfiguration(cfg =>
+            {
+                var scope = provider.CreateScope();
+                var userContext = scope.ServiceProvider.GetRequiredService<IUserContext>();
+                cfg.AddProfile(new TaskMappingProfile(userContext));
+
+            }).CreateMapper()
+            );
 
             services.AddAutoMapper(typeof(TaskMappingProfile));
 

@@ -19,7 +19,10 @@
                 <p class="card-text">@item.Description</p>
                 <p class="card-text">@item.TaskType</p>
                 <a class="btn btn-primary" asp-controller="Task" asp-action="Details" asp-route-encodedName="@item.EncodedName">Details</a>
-                <a class="btn btn-outline-secondary" asp-controller="Task" asp-action="Edit" asp-route-encodedName="@item.EncodedName">Edit</a>
+                @if (item.IsEditable)
+                {
+                    <a class="btn btn-outline-secondary" asp-controller="Task" asp-action="Edit" asp-route-encodedName="@item.EncodedName">Edit</a>
+                }
             </div>
         </div>
     }

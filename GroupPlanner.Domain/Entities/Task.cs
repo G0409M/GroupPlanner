@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Identity;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,6 +22,8 @@ namespace GroupPlanner.Domain.Entities
         public TaskDetails Details { get; set; } = new TaskDetails();
         public TaskType TaskType { get; set; } = default!;
         public string EncodedName { get; private set; } = default!;
+        public string? CreatedById { get; set; }
+        public IdentityUser? CreatedBy { get; set; }
 
         public void EncodeName() => EncodedName = Name.ToLower().Replace(" ", "-");
     }

@@ -16,5 +16,6 @@ namespace GroupPlanner.Application.Task
         public string? Description { get; set; }
         public DateTime? Deadline { get; set; }
         public string? EncodedName { get; set; }
+        public bool IsEditable { get; set; }
     }
 }

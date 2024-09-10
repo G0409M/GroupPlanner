@@ -22,6 +22,7 @@ namespace GroupPlanner.Infrastructure.Extensions
                 configuration.GetConnectionString("GroupPlanner")));
 
             services.AddDefaultIdentity<IdentityUser>()
+                .AddRoles<IdentityRole>()
               .AddEntityFrameworkStores<GroupPlannerDbContext>();
 
             services.AddScoped<GroupPlannerSeeder>();
