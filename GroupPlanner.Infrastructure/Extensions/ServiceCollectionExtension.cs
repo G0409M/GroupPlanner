@@ -28,6 +28,8 @@ namespace GroupPlanner.Infrastructure.Extensions
             services.AddScoped<GroupPlannerSeeder>();
 
             services.AddScoped<ITaskRepository, TaskRepository>();
+            services.AddScoped<ISubtaskRepository, SubtaskRepository>();
+
 
         }
     }

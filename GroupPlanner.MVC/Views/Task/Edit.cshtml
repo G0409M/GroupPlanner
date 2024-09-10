@@ -1,4 +1,5 @@
-﻿@model GroupPlanner.Application.Task.Commands.EditTask.EditTaskCommand
+﻿@using GroupPlanner.Application.Subtask.Commands
+@model GroupPlanner.Application.Task.Commands.EditTask.EditTaskCommand
 
 @{
     ViewData["Title"] = "Edit";
@@ -6,7 +7,6 @@
 
 <h1>Edit @Model.Name</h1>
 
-<h4>EditTaskCommand</h4>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -40,10 +40,18 @@
     </div>
 </div>
 
-<div>
-    <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+<div class="m-3">
+    <partial name="_CreateSubtask" model="new CreateSubtaskCommand() {TaskEncodedName= Model.EncodedName}" />
+
+    <a asp-action="Index" class="btn btn-secondary" >Back to list</a>
+</div>
+<h3> Subtasks: </h3>
+<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName">
+
 </div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");
+<script src="~/js/Task/Edit.js"></script>
+}
 }

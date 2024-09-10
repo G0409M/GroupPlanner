@@ -1,11 +1,16 @@
 ﻿using AutoMapper;
+using GroupPlanner.Application.Subtask.Commands;
+using GroupPlanner.Application.Subtask.Queries;
 using GroupPlanner.Application.Task.Commands.CreateTask;
 using GroupPlanner.Application.Task.Commands.EditTask;
 using GroupPlanner.Application.Task.Queries.GetAllTasks;
 using GroupPlanner.Application.Task.Queries.GetTaskByEncodedName;
+using GroupPlanner.MVC.Extensions;
+using GroupPlanner.MVC.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace GroupPlanner.MVC.Controllers
 {
@@ -54,18 +59,15 @@ namespace GroupPlanner.MVC.Controllers
             await _mediator.Send(commad);
             return RedirectToAction(nameof(Index));
         }
-        [Authorize]
+        [Authorize(Roles = "Owner")]
         public IActionResult Create()
         {
-            if(!User.IsInRole("Owner"))
-            {
-                return RedirectToAction("NoAccess", "Home");
-            }
+            
             return View();
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Roles = "Owner")]
         public async Task<IActionResult> Create(CreateTaskCommand commad)
         {
             if(!ModelState.IsValid)
@@ -73,8 +75,31 @@ namespace GroupPlanner.MVC.Controllers
                 return View(commad);
             }
             await _mediator.Send(commad);
+            this.SetNotification("success", $"Created task: {commad.Name}");
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpPost]
+        [Authorize(Roles = "Owner")]
+        [Route("Task/Subtask")]
+        public async Task<IActionResult> CreateSubtask(CreateSubtaskCommand commad)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            await _mediator.Send(commad);
+            return Ok();
+        }
+        [HttpGet]
+        [Route("Task/{encodedName}/Subtask")]
+        public async Task<IActionResult> GetSubtasks(string encodedName)
+        {
+
+            var data = await _mediator.Send(new GetSubtasksQuery() { EncodedName = encodedName });
+            return Ok(data);
+        }
+
 
     }
 }

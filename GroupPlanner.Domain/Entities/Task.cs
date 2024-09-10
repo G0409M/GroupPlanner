@@ -24,6 +24,7 @@ namespace GroupPlanner.Domain.Entities
         public string EncodedName { get; private set; } = default!;
         public string? CreatedById { get; set; }
         public IdentityUser? CreatedBy { get; set; }
+        public List<Subtask> Subtasks { get; set; } = new (); 
 
         public void EncodeName() => EncodedName = Name.ToLower().Replace(" ", "-");
     }

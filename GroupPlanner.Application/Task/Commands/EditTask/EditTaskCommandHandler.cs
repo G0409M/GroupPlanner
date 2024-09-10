@@ -23,7 +23,7 @@ namespace GroupPlanner.Application.Task.Commands.EditTask
         {
             var task = await _repository.GetByEncodedName(request.EncodedName!);
             var user = _userContext.GetCurrentUser();
-            var isEditable = user != null && task.CreatedById == user.Id;
+            var isEditable = user != null && (task.CreatedById == user.Id|| user.IsInRole("Moderator"));
             if(!isEditable)
             {
                 return Unit.Value;
