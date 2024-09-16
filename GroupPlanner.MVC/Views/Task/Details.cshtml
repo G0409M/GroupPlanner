@@ -30,10 +30,21 @@
         </dd>
     </dl>
 </div>
+
+<h3> Subtasks: </h3>
+<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName">
+
+</div>
+
 <div>
+
     @if (Model.IsEditable)
     {
         <a class="btn btn-outline-secondary" asp-controller="Task" asp-action="Edit" asp-route-encodedName="@Model.EncodedName">Edit</a>
     }
     <a asp-action="Index" class="btn btn-secondary">Back to List</a>
 </div>
+
+@section Scripts{
+    <script src="~/js/Task/Details.js"></script>
+}
