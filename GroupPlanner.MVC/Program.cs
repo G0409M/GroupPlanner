@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Net.WebSockets;
 using GroupPlanner.Infrastructure.Seeders;
 using GroupPlanner.Application.Extensions;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
