@@ -30,6 +30,49 @@ namespace GroupPlanner.Infrastructure.Persistance
                .WithOne(s => s.Task)
                .HasForeignKey(s => s.TaskId);
 
+            modelBuilder.HasDefaultSchema("dbo");
+            modelBuilder.Entity<IdentityUser>(
+                entity =>
+                {
+                    entity.ToTable(name: "User");
+                }
+                );
+            modelBuilder.Entity<IdentityRole>(
+                entity =>
+                {
+                    entity.ToTable(name: "Role");
+                }
+                );
+            modelBuilder.Entity<IdentityUserRole<string>>(
+                entity =>
+                {
+                    entity.ToTable(name: "UserRole");
+                }
+                );
+            modelBuilder.Entity<IdentityUserClaim<string>>(
+                entity =>
+                {
+                    entity.ToTable(name: "UserClaim");
+                }
+                );
+            modelBuilder.Entity<IdentityUserLogin<string>>(
+                entity =>
+                {
+                    entity.ToTable(name: "UserLogin");
+                }
+                );
+            modelBuilder.Entity<IdentityRoleClaim<string>>(
+                entity =>
+                {
+                    entity.ToTable(name: "RoleClaim");
+                }
+                );
+            modelBuilder.Entity<IdentityUserToken<string>>(
+                entity =>
+                {
+                    entity.ToTable(name: "UserToken");
+                }
+                );
         }
     }
 }
