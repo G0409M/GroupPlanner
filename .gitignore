@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/GroupPlanner.MVC/Controllers/TaskController.cs
+/GroupPlanner.Infrastructure/Persistance/GroupPlannerDbContext.cs
+/GroupPlanner.Infrastructure/Migrations/GroupPlannerDbContextModelSnapshot.cs
