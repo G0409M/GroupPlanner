@@ -24,6 +24,7 @@ namespace GroupPlanner.MVC.Controllers
             _mediator = mediator;
             _mapper = mapper;
         }
+        [Authorize]
         public async Task<IActionResult> Index()
         {
             var task = await _mediator.Send(new GetAllTasksQuery());
