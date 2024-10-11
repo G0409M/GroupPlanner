@@ -17,5 +17,7 @@ namespace GroupPlanner.Domain.Interfaces
         Task<Domain.Entities.Task?> GetByEncodedName(string encodedName);
         Task Commit();
 
+        Task<IEnumerable<Domain.Entities.Task>> GetAllByUserId(string userId);
+
     }
 }
