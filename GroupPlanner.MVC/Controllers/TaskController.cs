@@ -59,7 +59,7 @@ namespace GroupPlanner.MVC.Controllers
             await _mediator.Send(commad);
             return RedirectToAction(nameof(Index));
         }
-        [Authorize(Roles = "Owner")]
+        [Authorize]
         public IActionResult Create()
         {
             
@@ -67,7 +67,7 @@ namespace GroupPlanner.MVC.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Owner")]
+        [Authorize]
         public async Task<IActionResult> Create(CreateTaskCommand commad)
         {
             if(!ModelState.IsValid)
@@ -80,7 +80,7 @@ namespace GroupPlanner.MVC.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Owner")]
+        [Authorize]
         [Route("Task/Subtask")]
         public async Task<IActionResult> CreateSubtask(CreateSubtaskCommand commad)
         {
