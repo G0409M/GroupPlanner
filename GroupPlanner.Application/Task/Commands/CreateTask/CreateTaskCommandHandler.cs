@@ -25,11 +25,15 @@ namespace GroupPlanner.Application.Task.Commands.CreateTask
         public async Task<Unit> Handle(CreateTaskCommand request, CancellationToken cancellationToken)
         {
             var currentUser = _userContext.GetCurrentUser();
-           
+            if (currentUser == null)
+            {
+                throw new InvalidOperationException("User is not authenticated.");
+            }
             var task1 = _mapper.Map<Domain.Entities.Task>(request);
             task1.EncodeName();
             task1.Details.CreatedAt = DateTime.Now;
             task1.CreatedById = currentUser.Id;
+
             await _taskRepository.Create(task1);
 
             return Unit.Value;
