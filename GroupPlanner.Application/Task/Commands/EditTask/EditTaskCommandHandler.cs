@@ -33,6 +33,8 @@ namespace GroupPlanner.Application.Task.Commands.EditTask
             {
                 throw new InvalidOperationException("Task not found.");
             }
+
+            task.ProgressStatus = request.ProgressStatus;
             task.TaskType = request.TaskType;
             task.Details.Description = request.Description;
             task.Details.Deadline = request.Deadline;

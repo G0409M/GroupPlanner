@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using GroupPlanner.Application.ApplicationUser;
+using GroupPlanner.Domain.Entities;
 using GroupPlanner.Domain.Interfaces;
 using MediatR;
 using System;
@@ -33,6 +34,10 @@ namespace GroupPlanner.Application.Task.Commands.CreateTask
             task1.EncodeName();
             task1.Details.CreatedAt = DateTime.Now;
             task1.CreatedById = currentUser.Id;
+            if (task1.ProgressStatus == ProgressStatus.Nierozpoczete)
+            {
+                task1.ProgressStatus = request.ProgressStatus;
+            }
 
             await _taskRepository.Create(task1);
 

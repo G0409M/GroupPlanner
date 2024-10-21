@@ -32,7 +32,25 @@
                     <label asp-for="Deadline" class="control-label"></label>
                     <input asp-for="Deadline" class="form-control" />
                     <span asp-validation-for="Deadline" class="text-danger"></span>
-                </div> 
+                </div>
+                    <!-- New field for Progress Status -->
+                    <div class="form-group">
+                        <label asp-for="ProgressStatus" class="control-label">Progress Status</label>
+                        <select asp-for="ProgressStatus" class="form-control">
+                            <option value="Nierozpoczete">Nierozpoczęte</option>
+                            <option value="Wtrakcie">W trakcie</option>
+                            <option value="Ukonczone">Ukończone</option>
+                        </select>
+                        <span asp-validation-for="ProgressStatus" class="text-danger"></span>
+                    </div>
+
+                    <!-- New field for Estimated Time -->
+                    <div class="form-group">
+                        <label asp-for="EstimatedTime" class="control-label">Estimated Time (hours)</label>
+                        <input asp-for="EstimatedTime" class="form-control" type="number" min="0" step="0.5" />
+                        <span asp-validation-for="EstimatedTime" class="text-danger"></span>
+                    </div>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

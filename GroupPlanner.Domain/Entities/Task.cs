@@ -15,6 +15,12 @@ namespace GroupPlanner.Domain.Entities
         Spotkanie,
         Inne
     }
+    public enum ProgressStatus
+    {
+        Nierozpoczete,  
+        WTrakcie,  
+        Ukonczone    
+    }
     public class Task
     {
         public  int Id { get; set; }
@@ -22,6 +28,8 @@ namespace GroupPlanner.Domain.Entities
         public TaskDetails Details { get; set; } = new TaskDetails();
         public TaskType TaskType { get; set; } = default!;
         public string EncodedName { get; private set; } = default!;
+
+        public ProgressStatus ProgressStatus { get; set; } = ProgressStatus.Nierozpoczete;
         public string? CreatedById { get; set; }
         public IdentityUser? CreatedBy { get; set; }
         public List<Subtask> Subtasks { get; set; } = new (); 

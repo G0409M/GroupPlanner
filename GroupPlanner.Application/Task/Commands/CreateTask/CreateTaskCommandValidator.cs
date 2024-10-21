@@ -21,6 +21,8 @@ namespace GroupPlanner.Application.Task.Commands.CreateTask
 
             RuleFor(c => c.Description)
                 .NotEmpty();
+            RuleFor(c => c.ProgressStatus)
+                .IsInEnum().WithMessage("Invalid progress status.");
         }
     }
 }

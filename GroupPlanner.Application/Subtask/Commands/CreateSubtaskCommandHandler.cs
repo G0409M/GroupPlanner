@@ -36,6 +36,8 @@ namespace GroupPlanner.Application.Subtask.Commands
                 Deadline = request.Deadline,
                 Description = request.Description,
                 TaskId = task.Id,
+                ProgressStatus = request.ProgressStatus,  
+                EstimatedTime = request.EstimatedTime
             };
             await _subtaskRepository.Create(subtask);
             return Unit.Value;

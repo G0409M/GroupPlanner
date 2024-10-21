@@ -28,8 +28,10 @@ namespace GroupPlanner.Infrastructure.Seeders
                       {
                           Description= "Projekt zaliczeniowy",
                           Deadline = DateTime.UtcNow.AddDays(10)
-                      }
+                      },
+                        ProgressStatus = Domain.Entities.ProgressStatus.Nierozpoczete
                     };
+
                     T1.EncodeName();
                     _dbContext.Tasks.Add(T1);
                     await _dbContext.SaveChangesAsync();
