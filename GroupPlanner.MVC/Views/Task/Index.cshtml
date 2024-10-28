@@ -12,7 +12,7 @@
 <div class="row">
     @foreach(var item in Model)
     {
-        <div class="card m-3" style="width:18rem;">
+        <div class="card m-3" style="width:19rem;">
             <div class="card-body">
              <h5 class="card-title"> @item.Name</h5>
                 <h6 class="card-subtitle mb-2 text-muted">@item.Deadline</h6>
@@ -23,6 +23,7 @@
                 @if (item.IsEditable)
                 {
                     <a class="btn btn-outline-secondary" asp-controller="Task" asp-action="Edit" asp-route-encodedName="@item.EncodedName">Edit</a>
+                    <a class="btn btn-danger" asp-controller="Task" asp-action="Delete" asp-route-encodedName="@item.EncodedName">Delete</a>
                 }
             </div>
         </div>

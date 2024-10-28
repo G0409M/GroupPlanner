@@ -2,6 +2,7 @@
 using GroupPlanner.Application.Subtask.Commands;
 using GroupPlanner.Application.Subtask.Queries;
 using GroupPlanner.Application.Task.Commands.CreateTask;
+using GroupPlanner.Application.Task.Commands.DelateTask;
 using GroupPlanner.Application.Task.Commands.EditTask;
 using GroupPlanner.Application.Task.Queries.GetAllTasks;
 using GroupPlanner.Application.Task.Queries.GetTaskByEncodedName;
@@ -48,6 +49,26 @@ namespace GroupPlanner.MVC.Controllers
             EditTaskCommand model = _mapper.Map<EditTaskCommand>(dto);
             return View(model);
         }
+
+        [HttpGet]
+        [Authorize]
+        [Route("Task/{encodedName}/Delete")]
+        public async Task<IActionResult> Delete(string encodedName)
+        {
+            var dto = await _mediator.Send(new GetTaskByEncodedNameQuery(encodedName));
+            return View(dto);  // Widok potwierdzenia usunięcia
+        }
+        [HttpPost]
+        [Authorize]
+        [Route("Task/{encodedName}/Delete")]
+        public async Task<IActionResult> DeleteConfirmed(string encodedName)
+        {
+            await _mediator.Send(new DeleteTaskCommand(encodedName));
+            this.SetNotification("success", "Task deleted successfully");
+            return RedirectToAction(nameof(Index));
+        }
+
+
         [HttpPost]
 
         [Route("Task/{encodedName}/Edit")]

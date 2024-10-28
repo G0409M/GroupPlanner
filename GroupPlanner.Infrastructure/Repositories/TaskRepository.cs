@@ -1,11 +1,7 @@
 ﻿using GroupPlanner.Domain.Interfaces;
 using GroupPlanner.Infrastructure.Persistance;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace GroupPlanner.Infrastructure.Repositories
 {
@@ -41,5 +37,16 @@ namespace GroupPlanner.Infrastructure.Repositories
                 .Where(t => t.CreatedById == userId)
                 .ToListAsync();
         }
+        public async Task Delete(string encodedName)
+        {
+            var task = await _dbContext.Tasks.FirstOrDefaultAsync(t => t.EncodedName == encodedName);
+
+            if (task != null)
+            {
+                _dbContext.Tasks.Remove(task);
+                await _dbContext.SaveChangesAsync();
+            }
+        }
+
     }
 }

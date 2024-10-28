@@ -19,5 +19,8 @@ namespace GroupPlanner.Domain.Interfaces
 
         Task<IEnumerable<Domain.Entities.Task>> GetAllByUserId(string userId);
 
+        Task Delete(string encodedName);
+
+
     }
 }
