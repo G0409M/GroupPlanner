@@ -9,6 +9,7 @@ namespace GroupPlanner.Application.Subtask
 {
     public class SubtaskDto
     {
+        public int Id { get; set; }
         public string Description { get; set; } = default!;
         public DateTime? Deadline { get; set; }
         public ProgressStatus ProgressStatus { get; set; } = ProgressStatus.Nierozpoczete;

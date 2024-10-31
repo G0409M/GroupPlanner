@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using GroupPlanner.Application.Subtask.Commands;
+using GroupPlanner.Application.Subtask.Commands.Delete;
 using GroupPlanner.Application.Subtask.Queries;
 using GroupPlanner.Application.Task.Commands.CreateTask;
 using GroupPlanner.Application.Task.Commands.DelateTask;
@@ -122,6 +123,12 @@ namespace GroupPlanner.MVC.Controllers
             return Ok(data);
         }
 
-
+        [HttpDelete]
+        [Route("Task/{encodedName}/Subtask/{subtaskId}")]
+        public async Task<IActionResult> DeleteSubtask(string encodedName, int subtaskId)
+        {
+            await _mediator.Send(new DeleteSubtaskCommand { Id = subtaskId });
+            return Ok(); 
+        }
     }
 }

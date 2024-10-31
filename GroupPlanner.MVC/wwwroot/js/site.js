@@ -1,7 +1,6 @@
 ﻿const RenderSubtasks = (subtasks, container) => {
     container.empty();
 
-    // Mapa do konwersji statusów
     const statusMap = {
         0: "Nierozpoczęte",
         1: "W trakcie",
@@ -9,9 +8,8 @@
     };
 
     for (const subtask of subtasks) {
-        const statusText = statusMap[subtask.progressStatus] || "Nieznany status"; // W przypadku nieznanego statusu
+        const statusText = statusMap[subtask.progressStatus] || "Nieznany status"; 
 
-        // Sprawdzanie liczby godzin i wybór odpowiedniego słowa
         const hourText = subtask.estimatedTime === 1 ? "hour" : "hours";
 
         container.append(
@@ -22,10 +20,15 @@
                     <p class="card-text"><strong>Deadline:</strong> ${subtask.deadline}</p>
                     <p class="card-text"><strong>Status:</strong> ${statusText}</p>
                     <p class="card-text"><strong>Estimated Time:</strong> ${subtask.estimatedTime} ${hourText}</p>
+                    <button class="btn btn-danger btn-sm delete-subtask" data-subtask-id="${subtask.id}">Usuń</button>
                 </div>
             </div>`
         );
     }
+    container.find(".delete-subtask").click(function () {
+        const subtaskId = $(this).data("subtask-id");
+        DeleteSubtask(subtaskId);
+    });
 }
 
 const LoadSubtasks = () => {
@@ -44,6 +47,22 @@ const LoadSubtasks = () => {
         },
         error: function () {
             toastr["error"]("Something went wrong");
+        }
+    });
+}
+const DeleteSubtask = (subtaskId) => {
+    const container = $("#subtasks");
+    const taskEncodedName = container.data("encodedName");
+
+    $.ajax({
+        url: `/Task/${taskEncodedName}/Subtask/${subtaskId}`,
+        type: 'DELETE',
+        success: function () {
+            toastr["success"]("Subtask deleted successfully");
+            LoadSubtasks(); // Ponownie ładujemy listę podzadań
+        },
+        error: function () {
+            toastr["error"]("Failed to delete subtask");
         }
     });
 }

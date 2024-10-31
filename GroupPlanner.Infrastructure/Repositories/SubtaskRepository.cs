@@ -29,5 +29,17 @@ namespace GroupPlanner.Infrastructure.Repositories
         => await _dbContext.Subtasks
             .Where(s => s.Task.EncodedName == encodedName)
             .ToListAsync();
+
+        public async System.Threading.Tasks.Task Delete(Subtask subtask)
+        {
+            _dbContext.Subtasks.Remove(subtask);
+            await _dbContext.SaveChangesAsync();
+        }
+        public async Task<Subtask?> GetByIdAsync(int id)
+        {
+            return await _dbContext.Subtasks
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
+
     }
 }
