@@ -5,45 +5,35 @@
     ViewData["Title"] = "Details";
 }
 
-<h1>@Model.Name Details</h1>
+<div class="row">
+    <!-- Kolumna szczegółów zadania (65% szerokości) -->
+    <div class="col-md-8">
+        <h1>@Model.Name Details</h1>
+        <hr />
+        <dl class="bg-light p-3 rounded">
+            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.TaskType)</dt>
+            <dd>@Html.DisplayFor(model => model.TaskType)</dd>
+            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.Description)</dt>
+            <dd>@Html.DisplayFor(model => model.Description)</dd>
+            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.Deadline)</dt>
+            <dd>@Html.DisplayFor(model => model.Deadline)</dd>
+            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.ProgressStatus)</dt>
+            <dd>@Html.DisplayFor(model => model.ProgressStatus)</dd>
+        </dl>
+    </div>
 
-<div>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.TaskType)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.TaskType)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Description)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Description)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Deadline)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Deadline)
-        </dd>
-        <dt class="col-sm-2">
-            @Html.DisplayNameFor(model => model.ProgressStatus)
-        </dt>
-        <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.ProgressStatus)
-        </dd>
-    </dl>
+    <!-- Kolumna wykresu (35% szerokości) -->
+    <div class="col-md-4 text-center">
+        <h3>Estimated Time for Subtasks:</h3>
+        <canvas id="estimatedTimeChart" width="250" height="250"></canvas> <!-- Zmniejszenie rozmiaru wykresu -->
+    </div>
 </div>
 
-<h3> Subtasks: </h3>
-<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName">
-
-</div>
+<!-- Sekcja subtasków poniżej szczegółów i wykresu -->
+<h3>Subtasks:</h3>
+<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName"></div>
 
 <div>
-
     @if (Model.IsEditable)
     {
         <a class="btn btn-outline-secondary" asp-controller="Task" asp-action="Edit" asp-route-encodedName="@Model.EncodedName">Edit</a>
@@ -51,6 +41,67 @@
     <a asp-action="Index" class="btn btn-secondary">Back to List</a>
 </div>
 
-@section Scripts{
+@section Scripts {
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="~/js/Task/Details.js"></script>
+
+    <script>
+        // Funkcja ładująca dane subtasks i tworząca wykres doughnut
+        const LoadEstimatedTimeChart = () => {
+            const taskEncodedName = $("#subtasks").data("encodedName");
+
+            $.ajax({
+                url: `/Task/${taskEncodedName}/Subtask`,
+                type: 'get',
+                success: function (subtasks) {
+                    if (subtasks.length) {
+                        const labels = subtasks.map(subtask => subtask.description);
+                        const data = subtasks.map(subtask => subtask.estimatedTime);
+
+                        // Tworzenie wykresu doughnut
+                        const ctx = document.getElementById('estimatedTimeChart').getContext('2d');
+                        new Chart(ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Estimated Time in Hours',
+                                    data: data,
+                                    backgroundColor: subtasks.map((_, index) => `rgba(${(index * 50) % 255}, ${(index * 100) % 255}, ${(index * 150) % 255}, 0.6)`),
+                                    borderColor: subtasks.map((_, index) => `rgba(${(index * 50) % 255}, ${(index * 100) % 255}, ${(index * 150) % 255}, 1)`),
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function (context) {
+                                                return `${context.label}: ${context.raw} hours`;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        $("#estimatedTimeChart").replaceWith("<p>No subtasks to display</p>");
+                    }
+                },
+                error: function () {
+                    toastr["error"]("Failed to load subtask data");
+                }
+            });
+        };
+
+        $(document).ready(function () {
+            LoadSubtasks();
+            LoadEstimatedTimeChart();
+        });
+    </script>
 }
