@@ -1,0 +1,146 @@
+﻿@{
+    ViewData["Title"] = "Daily Availability";
+    Layout = "_Layout";
+}
+
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css" rel="stylesheet" />
+
+<div class="container mt-5">
+    <h2>Your Availability</h2>
+    <div id="calendar"></div>
+</div>
+
+<!-- Modal for editing availability -->
+<div class="modal fade" id="availabilityModal" tabindex="-1" aria-labelledby="availabilityModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="availabilityModalLabel">Edit Availability</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="availabilityForm">
+                    <input type="hidden" id="availabilityId" />
+                    <div class="mb-3">
+                        <label for="availabilityDate" class="form-label">Date</label>
+                        <input type="text" class="form-control" id="availabilityDate" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label for="availableHours" class="form-label">Available Hours</label>
+                        <input type="number" step="0.5" class="form-control" id="availableHours" min="0" max="24" />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" id="deleteAvailability" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FullCalendar and jQuery Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            editable: true,
+            selectable: true,
+            displayEventTime: false,
+            events: fetchAvailabilities,
+            dateClick: function (info) {
+                // Open modal to add new availability on date click
+                $('#availabilityId').val('');
+                $('#availabilityDate').val(info.dateStr);
+                $('#availableHours').val('');
+                $('#availabilityModal').modal('show');
+            },
+            eventClick: function (info) {
+                // Open modal to edit availability on event click
+                $('#availabilityId').val(info.event.id);
+                $('#availabilityDate').val(info.event.startStr);
+                $('#availableHours').val(info.event.extendedProps.availableHours);
+                $('#availabilityModal').modal('show');
+            }
+        });
+
+        calendar.render();
+
+        // Fetch events for calendar
+        function fetchAvailabilities(fetchInfo, successCallback, failureCallback) {
+            $.ajax({
+                 url: '/DailyAvailability/GetAvailabilities',
+                 type: 'GET',
+                 success: function (data) {
+                    // Map each availability to a FullCalendar event object
+                    var events = data.map(function (availability) {
+                    return {
+                        id: availability.id,
+                        title: availability.availableHours + ' hours', // Display hours as title
+                        start: availability.date,
+                        extendedProps: {
+                        availableHours: availability.availableHours
+                    }
+                };
+            });
+            successCallback(events);
+        }
+    });
+        }
+
+        // Handle form submission for adding/editing availability
+        $('#availabilityForm').on('submit', function (e) {
+            e.preventDefault();
+            var id = $('#availabilityId').val();
+            var date = $('#availabilityDate').val();
+            var hours = $('#availableHours').val();
+            var data = { id: parseInt(id) || 0, date: date, availableHours: parseFloat(hours) };
+
+            if (id) {
+                // Update availability
+                $.ajax({
+                    url: '@Url.Action("UpdateAvailability", "DailyAvailability")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function () {
+                        calendar.refetchEvents();
+                        $('#availabilityModal').modal('hide');
+                    }
+                });
+            } else {
+                // Create new availability
+                $.ajax({
+                    url: '@Url.Action("SaveAvailability", "DailyAvailability")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function () {
+                        calendar.refetchEvents();
+                        $('#availabilityModal').modal('hide');
+                    }
+                });
+            }
+        });
+
+        // Handle delete availability
+        $('#deleteAvailability').on('click', function () {
+            var id = $('#availabilityId').val();
+            if (id) {
+                $.ajax({
+                    url: '@Url.Action("DeleteAvailability", "DailyAvailability")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(parseInt(id)),
+                    success: function () {
+                        calendar.refetchEvents();
+                        $('#availabilityModal').modal('hide');
+                    }
+                });
+            }
+        });
+    });
+</script>

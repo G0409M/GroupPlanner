@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using GroupPlanner.Application.ApplicationUser;
+using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
 using GroupPlanner.Application.Task.Commands.EditTask;
@@ -31,6 +32,8 @@ namespace GroupPlanner.Application.Mapping
             CreateMap<TaskDto, EditTaskCommand>();
             CreateMap<SubtaskDto, Domain.Entities.Subtask>()
                 .ReverseMap();
+            CreateMap<GroupPlanner.Domain.Entities.DailyAvailability, DailyAvailabilityDto>().ReverseMap();
+
         }
     }
 }

@@ -4,6 +4,7 @@ using FluentValidation.AspNetCore;
 using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.Mapping;
 using GroupPlanner.Application.Task.Commands.CreateTask;
+using GroupPlanner.Domain.Interfaces;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,6 +31,8 @@ namespace GroupPlanner.Application.Extensions
             services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>()
                 .AddFluentValidationAutoValidation()
                 .AddFluentValidationClientsideAdapters();
+
+
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using GroupPlanner.Domain.Entities;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -19,6 +20,8 @@ namespace GroupPlanner.Infrastructure.Persistance
         public DbSet<Domain.Entities.Task> Tasks { get; set; }
 
         public DbSet<Domain.Entities.Subtask> Subtasks { get; set; }
+        public DbSet<DailyAvailability> DailyAvailabilities { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -29,6 +32,12 @@ namespace GroupPlanner.Infrastructure.Persistance
                .HasMany(c => c.Subtasks)
                .WithOne(s => s.Task)
                .HasForeignKey(s => s.TaskId);
+
+
+            modelBuilder.Entity<DailyAvailability>()
+                .HasOne(d => d.CreatedBy)
+                .WithMany()
+                .HasForeignKey(d => d.CreatedById);
 
             modelBuilder.HasDefaultSchema("dbo");
             modelBuilder.Entity<IdentityUser>(

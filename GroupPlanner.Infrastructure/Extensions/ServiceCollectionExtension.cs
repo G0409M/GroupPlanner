@@ -29,6 +29,7 @@ namespace GroupPlanner.Infrastructure.Extensions
 
             services.AddScoped<ITaskRepository, TaskRepository>();
             services.AddScoped<ISubtaskRepository, SubtaskRepository>();
+            services.AddScoped<IDailyAvailabilityRepository, DailyAvailabilityRepository>();
 
 
         }
