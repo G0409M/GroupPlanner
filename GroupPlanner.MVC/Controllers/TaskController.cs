@@ -122,21 +122,29 @@ namespace GroupPlanner.MVC.Controllers
         [Route("Task/Subtask")]
         public async Task<IActionResult> CreateSubtask(CreateSubtaskCommand command)
         {
-            // Przykład walidacji, która sprawdza, czy subtask deadline nie przekracza deadline taska
+            // Pobierz główne zadanie, aby sprawdzić jego deadline
             var parentTask = await _mediator.Send(new GetTaskByEncodedNameQuery(command.TaskEncodedName));
+
+            if (parentTask == null)
+            {
+                return BadRequest("Parent task not found.");
+            }
+
             if (command.Deadline > parentTask.Deadline)
             {
                 ModelState.AddModelError("Deadline", "Subtask deadline cannot exceed parent task deadline.");
-                return BadRequest(ModelState);
+                return BadRequest(ModelState); // Zwrot szczegółów błędu do klienta
             }
 
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(ModelState); // W przypadku innych błędów walidacji
             }
+
             await _mediator.Send(command);
             return Ok();
         }
+
         [HttpGet]
         [Route("Task/{encodedName}/Subtask")]
         public async Task<IActionResult> GetSubtasks(string encodedName)

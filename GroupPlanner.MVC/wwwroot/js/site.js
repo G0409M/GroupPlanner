@@ -60,6 +60,7 @@ const DeleteSubtask = (subtaskId) => {
         success: function () {
             toastr["success"]("Subtask deleted successfully");
             LoadSubtasks(); // Ponownie ładujemy listę podzadań
+            LoadEstimatedTimeChart(); // Odświeżamy wykres
         },
         error: function () {
             toastr["error"]("Failed to delete subtask");
