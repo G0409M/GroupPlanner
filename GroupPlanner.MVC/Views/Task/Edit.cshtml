@@ -12,7 +12,7 @@
     <div class="col-md-4">
         <form asp-action="Edit">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            
+
             <div class="form-group m-3">
                 <label class="control-label" asp-for="TaskType">TaskType</label>
                 <select class="form-control" asp-for="TaskType">
@@ -54,17 +54,22 @@
 </div>
 
 <div class="m-3">
-    <partial name="_CreateSubtask" model="new CreateSubtaskCommand() {TaskEncodedName= Model.EncodedName}" />
+    <!-- Wyświetlanie deadline zadania nadrzędnego -->
+    <p><strong>Deadline zadania:</strong> @Model.Deadline?.ToString("yyyy-MM-dd")</p>
 
-    <a asp-action="Index" class="btn btn-secondary" >Back to list</a>
+    <!-- Formularz tworzenia podzadania -->
+    <partial name="_CreateSubtask" model="new CreateSubtaskCommand() {TaskEncodedName = Model.EncodedName}" />
+
+    <a asp-action="Index" class="btn btn-secondary">Back to list</a>
 </div>
-<h3> Subtasks: </h3>
-<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName">
 
+<h3>Subtasks:</h3>
+<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName" data-deadline="@Model.Deadline?.ToString("yyyy-MM-dd")">
 </div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");
-<script src="~/js/Task/Edit.js"></script>
-}
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script src="~/js/Task/Edit.js"></script>
 }

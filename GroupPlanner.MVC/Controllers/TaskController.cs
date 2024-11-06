@@ -39,15 +39,30 @@ namespace GroupPlanner.MVC.Controllers
           var dto = await  _mediator.Send(new GetTaskByEncodedNameQuery(encodedName));
             return View(dto);
         }
+        [HttpGet]
+        [Authorize]
         [Route("Task/{encodedName}/Edit")]
         public async Task<IActionResult> Edit(string encodedName)
         {
             var dto = await _mediator.Send(new GetTaskByEncodedNameQuery(encodedName));
-            if(!dto.IsEditable)
+            if (!dto.IsEditable)
             {
                 return RedirectToAction("NoAccess", "Home");
             }
+
+            // Tworzymy model `EditTaskCommand`
             EditTaskCommand model = _mapper.Map<EditTaskCommand>(dto);
+
+            // Ustawiamy `TaskDeadline` w `CreateSubtaskCommand`
+            var createSubtaskCommand = new CreateSubtaskCommand
+            {
+                TaskEncodedName = dto.EncodedName,
+                TaskDeadline = dto.Deadline // Przekazanie deadline zadania nadrzędnego
+            };
+
+            // Przekazujemy `CreateSubtaskCommand` do widoku przez ViewData
+            ViewData["CreateSubtaskCommand"] = createSubtaskCommand;
+
             return View(model);
         }
 
@@ -105,13 +120,21 @@ namespace GroupPlanner.MVC.Controllers
         [HttpPost]
         [Authorize]
         [Route("Task/Subtask")]
-        public async Task<IActionResult> CreateSubtask(CreateSubtaskCommand commad)
+        public async Task<IActionResult> CreateSubtask(CreateSubtaskCommand command)
         {
+            // Przykład walidacji, która sprawdza, czy subtask deadline nie przekracza deadline taska
+            var parentTask = await _mediator.Send(new GetTaskByEncodedNameQuery(command.TaskEncodedName));
+            if (command.Deadline > parentTask.Deadline)
+            {
+                ModelState.AddModelError("Deadline", "Subtask deadline cannot exceed parent task deadline.");
+                return BadRequest(ModelState);
+            }
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-            await _mediator.Send(commad);
+            await _mediator.Send(command);
             return Ok();
         }
         [HttpGet]

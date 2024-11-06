@@ -31,16 +31,24 @@ namespace GroupPlanner.Application.Subtask.Commands
             {
                 return Unit.Value;
             }
+
+            // Sprawdzamy, czy deadline podzadania nie wykracza poza deadline zadania
+            if (request.Deadline.HasValue && task.Details.Deadline.HasValue && request.Deadline > task.Details.Deadline)
+            {
+                throw new InvalidOperationException("Deadline podzadania nie może przekraczać deadline zadania.");
+            }
+
             var subtask = new Domain.Entities.Subtask()
             {
                 Deadline = request.Deadline,
                 Description = request.Description,
                 TaskId = task.Id,
-                ProgressStatus = request.ProgressStatus,  
+                ProgressStatus = request.ProgressStatus,
                 EstimatedTime = request.EstimatedTime
             };
             await _subtaskRepository.Create(subtask);
             return Unit.Value;
         }
+
     }
 }

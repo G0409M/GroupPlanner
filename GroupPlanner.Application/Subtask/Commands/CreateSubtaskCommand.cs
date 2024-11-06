@@ -11,5 +11,6 @@ namespace GroupPlanner.Application.Subtask.Commands
     {
         public string TaskEncodedName { get; set; } = default!;
 
+        public DateTime? TaskDeadline { get; set; }
     }
 }
