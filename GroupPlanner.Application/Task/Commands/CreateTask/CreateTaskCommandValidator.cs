@@ -9,15 +9,8 @@ namespace GroupPlanner.Application.Task.Commands.CreateTask
             RuleFor(c => c.Name)
                 .NotEmpty()
                 .MinimumLength(3)
-                .MaximumLength(50)
-                .Custom((value, context) =>
-                {
-                    var existingTask = repository.GetByName(value).Result;
-                    if (existingTask != null)
-                    {
-                        context.AddFailure($"{value} is not unique.");
-                    }
-                });
+                .MaximumLength(50);
+                
 
             RuleFor(c => c.Description)
                 .NotEmpty();
