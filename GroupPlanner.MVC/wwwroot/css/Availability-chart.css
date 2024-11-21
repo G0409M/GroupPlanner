@@ -1,0 +1,113 @@
+﻿/* Styl wykresu i tabeli */
+#chartTableContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px;
+    box-sizing: border-box;
+    width: 100%;
+    gap: 10px;
+    flex-wrap: wrap; /* Pozwala na zawijanie elementów w mniejszych ekranach */
+}
+
+#chartWrapper {
+    flex: 7; /* 70% szerokości */
+    height: 400px;
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#dataTable {
+    flex: 3; /* 30% szerokości */
+    height: 400px;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;
+}
+
+    #dataTable th,
+    #dataTable td {
+        padding: 5px;
+        text-align: left;
+        border-bottom: 1px solid #dee2e6;
+        font-size: 0.9rem;
+    }
+
+    #dataTable thead {
+        background-color: #f1f3f5;
+    }
+
+    #dataTable tbody tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+/* Styl dla inputów */
+#filterContainer input[type="text"] {
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    outline: none;
+    margin-right: 10px;
+    width: 150px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Styl dla przycisków */
+#filterContainer button {
+    padding: 10px 15px;
+    background-color: #e9ecef; /* Ciemniejszy szary kolor */
+    color: #333; /* Ciemniejszy szary dla tekstu */
+    border: 1px solid #dee2e6; /* Lekki obrys */
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    margin-right: 10px;
+}
+
+    #filterContainer button:hover {
+        background-color: #d6d8db; /* Jeszcze ciemniejszy szary przy hover */
+        border-color: #c6c8ca; /* Nieco ciemniejszy obrys */
+    }
+
+
+
+/* Media Queries dla responsywności */
+@media (max-width: 992px) {
+    #chartWrapper,
+    #dataTable {
+        flex: 1 1 100%; /* Elementy zajmują całą szerokość */
+        height: 300px; /* Zmniejszona wysokość */
+    }
+
+    #chartTableContainer {
+        gap: 20px; /* Większy odstęp między elementami */
+    }
+}
+
+@media (max-width: 576px) {
+    #filterContainer input[type="text"] {
+        width: 100%; /* Inputy zajmują pełną szerokość */
+        margin-bottom: 10px; /* Odstęp między elementami */
+    }
+
+    #filterContainer button {
+        width: 100%; /* Przyciski zajmują pełną szerokość */
+        margin-bottom: 10px;
+    }
+
+    #chartWrapper,
+    #dataTable {
+        height: auto; /* Dynamiczna wysokość */
+    }
+}
