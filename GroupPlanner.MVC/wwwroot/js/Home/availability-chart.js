@@ -6,10 +6,6 @@
     errorMessage.id = 'error-message';
     document.body.appendChild(errorMessage);
 
-    /**
- * Aktualizuje wykres z danymi.
- * @param {Array} data - Dane do wykresu.
- */
     function updateChart(data) {
         const labels = data.map(item =>
             new Date(item.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -17,11 +13,11 @@
         const hours = data.map(item => item.availableHours);
 
         const barColors = hours.map(value => {
-            if (value === 1) return 'rgba(255, 99, 132, 0.8)'; // Wartość 1: czerwony
-            if (value >= 2 && value <= 3) return 'rgba(255, 159, 64, 0.8)'; // Wartości 2-3: pomarańczowy
-            if (value >= 4 && value <= 5) return 'rgba(255, 205, 86, 0.8)'; // Wartości 4-5: żółty
-            if (value >= 6 && value <= 7) return 'rgba(75, 192, 192, 0.8)'; // Wartości 6-7: zielony
-            return 'rgba(54, 162, 235, 0.8)'; // Wartości większe niż 7: niebieski
+            if (value === 1) return 'rgba(255, 99, 132, 0.8)';
+            if (value >= 2 && value <= 3) return 'rgba(255, 159, 64, 0.8)';
+            if (value >= 4 && value <= 5) return 'rgba(255, 205, 86, 0.8)';
+            if (value >= 6 && value <= 7) return 'rgba(75, 192, 192, 0.8)';
+            return 'rgba(54, 162, 235, 0.8)';
         });
 
         if (chart) chart.destroy();
@@ -33,7 +29,7 @@
                 datasets: [{
                     data: hours,
                     backgroundColor: barColors,
-                    borderColor: barColors.map(color => color.replace('0.8', '1')), // Intensywniejszy kolor dla obramowania
+                    borderColor: barColors.map(color => color.replace('0.8', '1')),
                     borderWidth: 1,
                 }]
             },
@@ -48,18 +44,17 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max:24,
+                        suggestedMax: 24,
+                        ticks: {
+                            stepSize: 0.5,
+                            precision: 1
+                        }
                     }
                 }
             }
         });
     }
 
-
-    /**
-     * Aktualizuje tabelę z danymi.
-     * @param {Array} data - Dane do tabeli.
-     */
     function updateTable(data) {
         tableBody.innerHTML = '';
         data.forEach(item => {
@@ -71,31 +66,53 @@
         });
     }
 
-    /**
-     * Pobiera dane z serwera i aktualizuje wykres oraz tabelę.
-     * @param {string} startDate - Data początkowa.
-     * @param {string} endDate - Data końcowa.
-     */
     function fetchDataAndRenderChart(startDate, endDate) {
         fetch('/Home/GetDailyAvailabilityData')
             .then(response => response.json())
             .then(data => {
-                const filteredData = data.filter(item => {
+                const grouped = {};
+
+                data.forEach(item => {
                     const date = new Date(item.date);
-                    return date >= new Date(startDate) && date <= new Date(endDate);
+                    const dateKey = date.toISOString().split('T')[0];
+
+                    if (!grouped[dateKey]) {
+                        grouped[dateKey] = 0;
+                    }
+
+                    grouped[dateKey] += parseFloat(item.availableHours);
                 });
-                if (filteredData.length === 0) {
+
+                let aggregatedData = Object.entries(grouped).map(([date, availableHours]) => ({
+                    date,
+                    availableHours
+                }));
+
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+
+                aggregatedData = aggregatedData.filter(item => {
+                    const itemDate = new Date(item.date);
+                    return itemDate >= start && itemDate <= end;
+                });
+
+                aggregatedData.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                if (aggregatedData.length === 0) {
                     errorMessage.textContent = 'No data available for the selected date range.';
                 } else {
                     errorMessage.textContent = '';
-                    updateChart(filteredData);
-                    updateTable(filteredData);
+                    updateChart(aggregatedData);
+                    updateTable(aggregatedData);
                 }
             })
             .catch(() => {
                 errorMessage.textContent = 'An error occurred while fetching data.';
             });
     }
+
+
+
 
     const today = new Date();
     const fiveDaysAgo = new Date();

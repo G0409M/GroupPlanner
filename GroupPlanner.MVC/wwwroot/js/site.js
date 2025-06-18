@@ -17,7 +17,6 @@
                 <div class="card-body">
                     <p class="card-text text-center" style="font-weight: bold">${subtask.description}</p>
                     <hr style="border-top: 1px solid #ccc;"> <!-- Dodanie linii oddzielającej -->
-                    <p class="card-text"><strong>Deadline:</strong> ${subtask.deadline}</p>
                     <p class="card-text"><strong>Status:</strong> ${statusText}</p>
                     <p class="card-text"><strong>Estimated Time:</strong> ${subtask.estimatedTime} ${hourText}</p>
                     <button class="btn btn-danger btn-sm delete-subtask" data-subtask-id="${subtask.id}">Usuń</button>

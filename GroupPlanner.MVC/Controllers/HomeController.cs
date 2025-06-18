@@ -41,7 +41,7 @@ public class HomeController : Controller
         .Select(a => new
         {
             Date = a.Date.ToString("yyyy-MM-dd"),
-            AvailableHours = double.TryParse(a.AvailableHours.ToString(), out var hours) ? hours : 0
+            AvailableHours = a.AvailableHours
         }).ToList();
 
         return Json(result);

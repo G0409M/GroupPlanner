@@ -1,6 +1,6 @@
-﻿@using GroupPlanner.Application.Subtask.Commands
-@model GroupPlanner.Application.Task.Commands.EditTask.EditTaskCommand
-
+﻿@using GroupPlanner.Application.Task
+@model TaskDto
+@using GroupPlanner.Application.Subtask
 @{
     ViewData["Title"] = "Edit";
 }
@@ -58,13 +58,13 @@
     <p><strong>Deadline zadania:</strong> @Model.Deadline?.ToString("yyyy-MM-dd")</p>
 
     <!-- Formularz tworzenia podzadania -->
-    <partial name="_CreateSubtask" model="new CreateSubtaskCommand() {TaskEncodedName = Model.EncodedName}" />
+    <partial name="_CreateSubtask" model="new SubtaskDto { TaskEncodedName = Model.EncodedName, TaskDeadline = Model.Deadline }" />
 
     <a asp-action="Index" class="btn btn-secondary">Back to list</a>
 </div>
 
 <h3>Subtasks:</h3>
-<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName" data-deadline="@Model.Deadline?.ToString("yyyy-MM-dd")">
+<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName">
 </div>
 
 @section Scripts {

@@ -1,6 +1,6 @@
-﻿@using GroupPlanner.Application.Task.Commands.CreateTask
-@using GroupPlanner.Application.Task
-@model CreateTaskCommand
+﻿@using GroupPlanner.Application.Task
+@model TaskDto
+
 <h1> Create task</h1>
 <hr />
 <div class="row">
@@ -21,6 +21,11 @@
             <div class="form-group mb-3">
                 <label class="control-label" asp-for="Deadline">Deadline</label>
                 <input class="form-control" type="date" asp-for="Deadline" />
+            </div>
+            <div class="form-group mb-3">
+                <label class="control-label" asp-for="Priority">Priority</label>
+                <input class="form-control" type="number" asp-for="Priority" min="1" max="5" />
+                <span asp-validation-for="Priority" class="text-danger"></span>
             </div>
 
             <div class="form-group mb-3">

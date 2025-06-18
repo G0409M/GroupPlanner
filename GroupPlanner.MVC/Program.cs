@@ -3,8 +3,8 @@ using GroupPlanner.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 using System.Net.WebSockets;
 using GroupPlanner.Infrastructure.Seeders;
-using GroupPlanner.Application.Extensions;
 using Microsoft.AspNetCore.Identity;
+using GroupPlanner.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 

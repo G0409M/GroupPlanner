@@ -1,147 +1,167 @@
 ﻿using AutoMapper;
-using GroupPlanner.Application.Subtask.Commands;
-using GroupPlanner.Application.Subtask.Commands.Delete;
-using GroupPlanner.Application.Subtask.Queries;
-using GroupPlanner.Application.Task.Commands.CreateTask;
-using GroupPlanner.Application.Task.Commands.DelateTask;
-using GroupPlanner.Application.Task.Commands.EditTask;
-using GroupPlanner.Application.Task.Queries.GetAllTasks;
-using GroupPlanner.Application.Task.Queries.GetTaskByEncodedName;
+using GroupPlanner.Application.ApplicationUser;
+using GroupPlanner.Application.Subtask;
+using GroupPlanner.Application.Task;
+using GroupPlanner.Domain.Entities;
+using GroupPlanner.Domain.Interfaces;
+using GroupPlanner.Infrastructure;
 using GroupPlanner.MVC.Extensions;
-using GroupPlanner.MVC.Models;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 
 namespace GroupPlanner.MVC.Controllers
 {
-    public class TaskController:Controller
+    public class TaskController : Controller
     {
-        private readonly IMediator _mediator;
+        private readonly ITaskRepository _taskRepository;
+        private readonly ISubtaskRepository _subtaskRepository;
+        private readonly IUserContext _userContext;
         private readonly IMapper _mapper;
 
-        public TaskController(IMediator mediator, IMapper mapper)
+        public TaskController(
+            ITaskRepository taskRepository,
+            ISubtaskRepository subtaskRepository,
+            IUserContext userContext,
+            IMapper mapper)
         {
-            _mediator = mediator;
+            _taskRepository = taskRepository;
+            _subtaskRepository = subtaskRepository;
+            _userContext = userContext;
             _mapper = mapper;
         }
+
         [Authorize]
         public async Task<IActionResult> Index()
         {
-            var task = await _mediator.Send(new GetAllTasksQuery());
-            return View(task);
+            var user = _userContext.GetCurrentUser();
+            var tasks = await _taskRepository.GetAllByUserId(user.Id);
+            var dtos = _mapper.Map<IEnumerable<TaskDto>>(tasks);
+            return View(dtos);
         }
 
+        [Authorize]
+        [HttpGet]
+        public IActionResult Create()
+        {
+            return View();
+        }
+
+        [Authorize]
+        [HttpPost]
+        public async Task<IActionResult> Create(TaskDto dto)
+        {
+            if (!ModelState.IsValid)
+                return View(dto);
+
+            var task = _mapper.Map<Domain.Entities.Task>(dto);
+            var user = _userContext.GetCurrentUser();
+
+            task.CreatedById = user.Id;
+            task.EncodeName();
+            task.Details.CreatedAt = DateTime.Now;
+
+            await _taskRepository.Create(task);
+
+            this.SetNotification("success", $"Created task: {dto.Name}");
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
         [Route("Task/{encodedName}/Details")]
         public async Task<IActionResult> Details(string encodedName)
         {
-          var dto = await  _mediator.Send(new GetTaskByEncodedNameQuery(encodedName));
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+            if (task == null) return NotFound();
+
+            var dto = _mapper.Map<TaskDto>(task);
             return View(dto);
         }
+
         [HttpGet]
-        [Authorize]
         [Route("Task/{encodedName}/Edit")]
         public async Task<IActionResult> Edit(string encodedName)
         {
-            var dto = await _mediator.Send(new GetTaskByEncodedNameQuery(encodedName));
-            if (!dto.IsEditable)
-            {
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+            if (task == null) return NotFound();
+
+            var user = _userContext.GetCurrentUser();
+            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
                 return RedirectToAction("NoAccess", "Home");
-            }
 
-            // Tworzymy model `EditTaskCommand`
-            EditTaskCommand model = _mapper.Map<EditTaskCommand>(dto);
+            var dto = _mapper.Map<TaskDto>(task);
+            return View(dto);
+        }
 
-            // Ustawiamy `TaskDeadline` w `CreateSubtaskCommand`
-            var createSubtaskCommand = new CreateSubtaskCommand
-            {
-                TaskEncodedName = dto.EncodedName,
-                TaskDeadline = dto.Deadline // Przekazanie deadline zadania nadrzędnego
-            };
+        [HttpPost]
+        [Route("Task/{encodedName}/Edit")]
+        public async Task<IActionResult> Edit(string encodedName, TaskDto dto)
+        {
+            if (!ModelState.IsValid)
+                return View(dto);
 
-            // Przekazujemy `CreateSubtaskCommand` do widoku przez ViewData
-            ViewData["CreateSubtaskCommand"] = createSubtaskCommand;
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+            if (task == null) return NotFound();
 
-            return View(model);
+            var user = _userContext.GetCurrentUser();
+            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return RedirectToAction("NoAccess", "Home");
+
+            task.Name = dto.Name;
+            task.TaskType = dto.TaskType;
+            task.Priority = dto.Priority;
+            task.ProgressStatus = dto.ProgressStatus;
+            task.Details.Description = dto.Description;
+            task.Details.Deadline = dto.Deadline;
+
+            await _taskRepository.Commit();
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpGet]
-        [Authorize]
         [Route("Task/{encodedName}/Delete")]
         public async Task<IActionResult> Delete(string encodedName)
         {
-            var dto = await _mediator.Send(new GetTaskByEncodedNameQuery(encodedName));
-            return View(dto);  // Widok potwierdzenia usunięcia
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+            if (task == null) return NotFound();
+
+            var dto = _mapper.Map<TaskDto>(task);
+            return View(dto);
         }
+
         [HttpPost]
-        [Authorize]
         [Route("Task/{encodedName}/Delete")]
         public async Task<IActionResult> DeleteConfirmed(string encodedName)
         {
-            await _mediator.Send(new DeleteTaskCommand(encodedName));
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+            if (task == null) return NotFound();
+
+            var user = _userContext.GetCurrentUser();
+            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return RedirectToAction("NoAccess", "Home");
+
+            await _taskRepository.Delete(encodedName);
             this.SetNotification("success", "Task deleted successfully");
             return RedirectToAction(nameof(Index));
         }
 
-
         [HttpPost]
-
-        [Route("Task/{encodedName}/Edit")]
-        public async Task<IActionResult> Create(string encodedName,EditTaskCommand commad)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(commad);
-            }
-            await _mediator.Send(commad);
-            return RedirectToAction(nameof(Index));
-        }
-        [Authorize]
-        public IActionResult Create()
-        {
-            
-            return View();
-        }
-
-        [HttpPost]
-        [Authorize]
-        public async Task<IActionResult> Create(CreateTaskCommand commad)
-        {
-            if(!ModelState.IsValid)
-            {
-                return View(commad);
-            }
-            await _mediator.Send(commad);
-            this.SetNotification("success", $"Created task: {commad.Name}");
-            return RedirectToAction(nameof(Index));
-        }
-
-        [HttpPost]
-        [Authorize]
         [Route("Task/Subtask")]
-        public async Task<IActionResult> CreateSubtask(CreateSubtaskCommand command)
+        public async Task<IActionResult> CreateSubtask(SubtaskDto dto)
         {
-            // Pobierz główne zadanie, aby sprawdzić jego deadline
-            var parentTask = await _mediator.Send(new GetTaskByEncodedNameQuery(command.TaskEncodedName));
+            var task = await _taskRepository.GetByEncodedName(dto.TaskEncodedName!);
+            if (task == null) return BadRequest("Parent task not found");
 
-            if (parentTask == null)
-            {
-                return BadRequest("Parent task not found.");
-            }
-
-            if (command.Deadline > parentTask.Deadline)
-            {
-                ModelState.AddModelError("Deadline", "Subtask deadline cannot exceed parent task deadline.");
-                return BadRequest(ModelState); // Zwrot szczegółów błędu do klienta
-            }
+            var user = _userContext.GetCurrentUser();
+            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return BadRequest("Not authorized");
 
             if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState); // W przypadku innych błędów walidacji
-            }
+                return BadRequest(ModelState);
 
-            await _mediator.Send(command);
+            var subtask = _mapper.Map<Domain.Entities.Subtask>(dto);
+            subtask.TaskId = task.Id;
+
+            await _subtaskRepository.Create(subtask);
             return Ok();
         }
 
@@ -149,17 +169,20 @@ namespace GroupPlanner.MVC.Controllers
         [Route("Task/{encodedName}/Subtask")]
         public async Task<IActionResult> GetSubtasks(string encodedName)
         {
-
-            var data = await _mediator.Send(new GetSubtasksQuery() { EncodedName = encodedName });
-            return Ok(data);
+            var subtasks = await _subtaskRepository.GetAllByEncodedName(encodedName);
+            var dtos = _mapper.Map<IEnumerable<SubtaskDto>>(subtasks);
+            return Ok(dtos);
         }
 
         [HttpDelete]
         [Route("Task/{encodedName}/Subtask/{subtaskId}")]
         public async Task<IActionResult> DeleteSubtask(string encodedName, int subtaskId)
         {
-            await _mediator.Send(new DeleteSubtaskCommand { Id = subtaskId });
-            return Ok(); 
+            var subtask = await _subtaskRepository.GetByIdAsync(subtaskId);
+            if (subtask == null) return NotFound();
+
+            await _subtaskRepository.Delete(subtask);
+            return Ok();
         }
     }
 }

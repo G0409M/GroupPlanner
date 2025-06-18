@@ -9,14 +9,6 @@
     $("#createSubtaskModal form").submit(function (event) {
         event.preventDefault();
 
-        const subtaskDeadline = new Date($("#createSubtaskModal input[name='Deadline']").val());
-        const taskDeadline = new Date($("#createSubtaskModal input[name='Deadline']").data("task-deadline"));
-
-        if (subtaskDeadline > taskDeadline) {
-            toastr["error"]("Subtask deadline cannot exceed parent task deadline.");
-            return;
-        }
-
         $.ajax({
             url: $(this).attr('action'),
             type: $(this).attr('method'),

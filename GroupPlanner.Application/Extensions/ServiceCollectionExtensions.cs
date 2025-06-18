@@ -1,38 +1,36 @@
 ﻿using AutoMapper;
 using FluentValidation;
-using FluentValidation.AspNetCore;
-using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.Mapping;
-using GroupPlanner.Application.Task.Commands.CreateTask;
-using GroupPlanner.Domain.Interfaces;
-using MediatR;
+using GroupPlanner.Application.ApplicationUser;
 using Microsoft.Extensions.DependencyInjection;
+using FluentValidation.AspNetCore;
+using GroupPlanner.Application.Task;
 
-namespace GroupPlanner.Application.Extensions
+namespace GroupPlanner.Application
 {
     public static class ServiceCollectionExtension
     {
         public static void AddApplication(this IServiceCollection services)
         {
+            // Rejestracja UserContext
             services.AddScoped<IUserContext, UserContext>();
-            services.AddMediatR(typeof(CreateTaskCommand));
 
-            services.AddScoped(provider => new MapperConfiguration(cfg =>
+            // Rejestracja AutoMappera z profilem korzystającym z IUserContext
+            services.AddScoped<IMapper>(provider =>
             {
-                var scope = provider.CreateScope();
-                var userContext = scope.ServiceProvider.GetRequiredService<IUserContext>();
-                cfg.AddProfile(new TaskMappingProfile(userContext));
+                var userContext = provider.GetRequiredService<IUserContext>();
+                var config = new MapperConfiguration(cfg =>
+                {
+                    cfg.AddProfile(new TaskMappingProfile(userContext));
+                });
 
-            }).CreateMapper()
-            );
+                return config.CreateMapper();
+            });
 
-            services.AddAutoMapper(typeof(TaskMappingProfile));
-
-            services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>()
-                .AddFluentValidationAutoValidation()
-                .AddFluentValidationClientsideAdapters();
-
-
+            // Rejestracja FluentValidation z automatyczną walidacją
+            services.AddValidatorsFromAssemblyContaining<TaskDto>();
+            services.AddFluentValidationAutoValidation();
+            services.AddFluentValidationClientsideAdapters();
         }
     }
 }

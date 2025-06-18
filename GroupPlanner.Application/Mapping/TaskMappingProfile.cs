@@ -3,7 +3,6 @@ using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
-using GroupPlanner.Application.Task.Commands.EditTask;
 using GroupPlanner.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -29,7 +28,6 @@ namespace GroupPlanner.Application.Mapping
                                     && (src.CreatedById == user.Id || user.IsInRole("Moderator"))))
                 .ForMember(dto => dto.Description, opt => opt.MapFrom(src => src.Details.Description))
                 .ForMember(dto => dto.Deadline, opt => opt.MapFrom(src => src.Details.Deadline));
-            CreateMap<TaskDto, EditTaskCommand>();
             CreateMap<SubtaskDto, Domain.Entities.Subtask>()
                 .ReverseMap();
             CreateMap<GroupPlanner.Domain.Entities.DailyAvailability, DailyAvailabilityDto>().ReverseMap();

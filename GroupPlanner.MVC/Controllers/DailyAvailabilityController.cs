@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.DailyAvailability;
-using GroupPlanner.Application.Task.Queries.GetAllTasks;
 using GroupPlanner.Domain.Entities;
 using GroupPlanner.Domain.Interfaces;
 using MediatR;
@@ -58,8 +57,17 @@ namespace GroupPlanner.MVC.Controllers
             }
 
             var availabilities = await _repository.GetAllByUserId(currentUser.Id);
-            return Json(availabilities);
+
+            var result = availabilities.Select(x => new DailyAvailabilityDto
+            {
+                Id = x.Id,
+                Date = x.Date, // Standaryzowany format ISO
+                AvailableHours = x.AvailableHours      // double zostanie poprawnie zserializowany z kropką
+            });
+
+            return Json(result);
         }
+
         [HttpPost]
         public async Task<IActionResult> UpdateAvailability([FromBody] DailyAvailabilityDto availabilityDto)
         {
