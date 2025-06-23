@@ -21,6 +21,5 @@ namespace GroupPlanner.Domain.Interfaces
 
         Task Delete(string encodedName);
 
-
     }
 }

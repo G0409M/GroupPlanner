@@ -1,0 +1,41 @@
+﻿@using GroupPlanner.Application.AlgorithmResult
+@using Newtonsoft.Json
+@model GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto
+
+@{
+    ViewData["Title"] = "Algorithm Result Details";
+    var details = JsonConvert.DeserializeObject<AlgorithmResultDetailsDto>(Model.ResultData);
+}
+<h2>Algorithm Result Details</h2>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Zadeklarowany czas [h]</th>
+            <th>Numer Zadania</th>
+            <th>Nazwa Zadania</th>
+            <th>Priorytet Zadania</th>
+            <th>Numer Podzadania</th>
+            <th>Nazwa Podzadania</th>
+            <th>Czas [h]</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (int i = 0; i < details.Availability.Count; i++)
+        {
+            <tr>
+                <td>@details.Availability[i].Date.ToShortDateString()</td>
+                <td>@details.Availability[i].AvailableHours</td>
+
+                <td>@(i + 1)</td>
+                <td>@details.Tasks.ElementAtOrDefault(i)?.Name</td>
+                <td>@details.Tasks.ElementAtOrDefault(i)?.Priority</td>
+
+                <td>@details.Subtasks.ElementAtOrDefault(i)?.Id</td>
+                <td>@details.Subtasks.ElementAtOrDefault(i)?.Description</td>
+                <td>@details.Subtasks.ElementAtOrDefault(i)?.EstimatedTime</td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,28 @@
+﻿
+@{
+    ViewData["Title"] = "Algorithm Execution";
+}
+
+<h2>Run Algorithm</h2>
+
+<form asp-action="Run" method="post">
+    <div class="form-group">
+        <label for="algorithm">Select Algorithm:</label>
+        <select name="algorithmType" class="form-control">
+            <option value="Genetic">Genetic</option>
+            <option value="Ant">Ant</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary" id="runBtn">Run Algorithm</button>
+</form>
+
+<hr />
+
+<div id="statusArea" style="margin-top: 20px; display: none;">
+    <strong>Status:</strong> <span id="statusMessage">Waiting...</span>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script src="~/js/AlgorithmResult/algorithmStatus.js"></script>
+}

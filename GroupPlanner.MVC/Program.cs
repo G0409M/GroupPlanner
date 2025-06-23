@@ -5,6 +5,7 @@ using System.Net.WebSockets;
 using GroupPlanner.Infrastructure.Seeders;
 using Microsoft.AspNetCore.Identity;
 using GroupPlanner.Application;
+using GroupPlanner.MVC.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,8 @@ builder.Services.AddControllersWithViews(options=> options.SuppressImplicitRequi
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 var scope = app.Services.CreateScope();
 var seeder = scope.ServiceProvider.GetRequiredService<GroupPlannerSeeder>();
@@ -38,4 +41,6 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapRazorPages();
+app.MapHub<AlgorithmHub>("/algorithmHub");
+
 app.Run();

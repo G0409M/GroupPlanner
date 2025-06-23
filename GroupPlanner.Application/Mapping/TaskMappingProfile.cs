@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using GroupPlanner.Application.AlgorithmResult;
 using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
@@ -31,6 +32,17 @@ namespace GroupPlanner.Application.Mapping
             CreateMap<SubtaskDto, Domain.Entities.Subtask>()
                 .ReverseMap();
             CreateMap<GroupPlanner.Domain.Entities.DailyAvailability, DailyAvailabilityDto>().ReverseMap();
+
+            CreateMap<Domain.Entities.AlgorithmResult, AlgorithmResultDto>()
+                .ForMember(dto => dto.IsEditable, opt => opt.MapFrom(src =>
+                user != null && (src.CreatedById == user.Id || user.IsInRole("Moderator"))));
+
+            CreateMap<AlgorithmResultDto, Domain.Entities.AlgorithmResult>();
+            CreateMap<GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto, GroupPlanner.Domain.Entities.AlgorithmResult>()
+                .ForMember(dest => dest.Algorithm, opt => opt.MapFrom(src => src.Algorithm));
+            
+
+
 
         }
     }

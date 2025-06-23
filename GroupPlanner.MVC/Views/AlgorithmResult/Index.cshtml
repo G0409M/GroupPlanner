@@ -1,0 +1,35 @@
+﻿@model IEnumerable<GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto>
+
+@{
+    ViewData["Title"] = "Algorithm Results";
+}
+
+<h2>Algorithm Results</h2>
+<a asp-action="Run" class="btn btn-success mb-3">Run Algorithm</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ALGORITHM</th>
+            <th>CREATED AT</th>
+            <th>VALUE</th>
+            <th>DURATION</th>
+            <th></th> <!-- dla przycisku "Details" -->
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var result in Model)
+        {
+            <tr>
+                <td>@result.Algorithm</td>
+                <td>@result.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                <td>@result.ResultValue</td>
+                <td>@result.Duration.ToString("hh\\:mm\\:ss")</td> <!-- format H:M:S -->
+                <td>
+                    <a class="btn btn-primary" asp-action="Details" asp-route-id="@result.Id">Details</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+
+</table>

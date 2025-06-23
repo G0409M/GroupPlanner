@@ -5,11 +5,11 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GroupPlanner.MVC", "GroupPlanner.MVC\GroupPlanner.MVC.csproj", "{1FE65CCE-A12D-4183-9176-73ECE88F1CE5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroupPlanner.Domain", "GroupPlanner.Domain\GroupPlanner.Domain.csproj", "{2408D09E-2D91-4155-A5E9-8B4AFAC1375A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GroupPlanner.Domain", "GroupPlanner.Domain\GroupPlanner.Domain.csproj", "{2408D09E-2D91-4155-A5E9-8B4AFAC1375A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroupPlanner.Application", "GroupPlanner.Application\GroupPlanner.Application.csproj", "{7216642F-1DA4-48F4-A440-025FAFCA6768}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GroupPlanner.Application", "GroupPlanner.Application\GroupPlanner.Application.csproj", "{7216642F-1DA4-48F4-A440-025FAFCA6768}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroupPlanner.Infrastructure", "GroupPlanner.Infrastructure\GroupPlanner.Infrastructure.csproj", "{05CCED6F-4A69-4E0A-B015-18016A3F4237}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GroupPlanner.Infrastructure", "GroupPlanner.Infrastructure\GroupPlanner.Infrastructure.csproj", "{05CCED6F-4A69-4E0A-B015-18016A3F4237}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

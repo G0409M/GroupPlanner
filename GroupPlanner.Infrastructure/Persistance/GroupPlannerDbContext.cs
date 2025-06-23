@@ -21,7 +21,7 @@ namespace GroupPlanner.Infrastructure.Persistance
 
         public DbSet<Domain.Entities.Subtask> Subtasks { get; set; }
         public DbSet<DailyAvailability> DailyAvailabilities { get; set; }
-
+        public DbSet<AlgorithmResult> AlgorithmResults { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -38,6 +38,12 @@ namespace GroupPlanner.Infrastructure.Persistance
                 .HasOne(d => d.CreatedBy)
                 .WithMany()
                 .HasForeignKey(d => d.CreatedById);
+
+            modelBuilder.Entity<AlgorithmResult>()
+                .HasOne(a => a.CreatedBy)
+                .WithMany()
+                .HasForeignKey(a => a.CreatedById);
+
 
             modelBuilder.HasDefaultSchema("dbo");
             modelBuilder.Entity<IdentityUser>(
