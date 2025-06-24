@@ -5,6 +5,7 @@ using GroupPlanner.Application.ApplicationUser;
 using Microsoft.Extensions.DependencyInjection;
 using FluentValidation.AspNetCore;
 using GroupPlanner.Application.Task;
+using GroupPlanner.Application.Algorithms.Genetic;
 
 namespace GroupPlanner.Application
 {
@@ -31,6 +32,8 @@ namespace GroupPlanner.Application
             services.AddValidatorsFromAssemblyContaining<TaskDto>();
             services.AddFluentValidationAutoValidation();
             services.AddFluentValidationClientsideAdapters();
+
+            services.AddScoped<IGeneticAlgorithmService, GeneticAlgorithmService>();
         }
     }
 }

@@ -1,34 +1,51 @@
 ﻿using GroupPlanner.Domain.Entities;
 using GroupPlanner.Domain.Interfaces;
-using GroupPlanner.Infrastructure.Persistance;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace GroupPlanner.Infrastructure.Repositories
+namespace GroupPlanner.Infrastructure.Persistance.Repositories
 {
     public class AlgorithmResultRepository : IAlgorithmResultRepository
     {
-        private readonly GroupPlannerDbContext _dbContext;
+        private readonly GroupPlannerDbContext _context;
 
         public AlgorithmResultRepository(GroupPlannerDbContext context)
         {
-            _dbContext = context;
+            _context = context;
         }
 
-        public async System.Threading.Tasks.Task SaveAsync(AlgorithmResult result)
+        public async Task<List<AlgorithmResult>> GetAllByUserId(string userId)
         {
-            _dbContext.AlgorithmResults.Add(result);
-            await _dbContext.SaveChangesAsync();
+            return await _context.AlgorithmResults
+                .Where(r => r.CreatedById == userId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
         }
 
-        public async Task<IEnumerable<AlgorithmResult>> GetAllAsync()
+        public async Task<AlgorithmResult?> GetByIdAsync(int id)
         {
-            return await _dbContext.AlgorithmResults.ToListAsync();
+            return await _context.AlgorithmResults
+                .Include(r => r.CreatedBy)
+                .FirstOrDefaultAsync(r => r.Id == id);
+        }
+
+        public async System.Threading.Tasks.Task Create(AlgorithmResult result)
+        {
+            await _context.AlgorithmResults.AddAsync(result);
+            await Commit();
+        }
+
+        public async System.Threading.Tasks.Task Delete(int id)
+        {
+            var result = await _context.AlgorithmResults.FindAsync(id);
+            if (result != null)
+            {
+                _context.AlgorithmResults.Remove(result);
+            }
+        }
+
+        public async System.Threading.Tasks.Task Commit()
+        {
+            await _context.SaveChangesAsync();
         }
     }
-
 }

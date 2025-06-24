@@ -21,7 +21,7 @@ namespace GroupPlanner.Infrastructure.Persistance
 
         public DbSet<Domain.Entities.Subtask> Subtasks { get; set; }
         public DbSet<DailyAvailability> DailyAvailabilities { get; set; }
-        public DbSet<AlgorithmResult> AlgorithmResults { get; set; }
+        public DbSet<AlgorithmResult> AlgorithmResults { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -9,7 +9,10 @@ namespace GroupPlanner.Domain.Interfaces
 {
     public interface IAlgorithmResultRepository
     {
-        System.Threading.Tasks.Task SaveAsync(AlgorithmResult result);
-        Task<IEnumerable<AlgorithmResult>> GetAllAsync();
+        Task<List<AlgorithmResult>> GetAllByUserId(string userId);
+        Task<AlgorithmResult?> GetByIdAsync(int id);
+        System.Threading.Tasks.Task Create(AlgorithmResult result);
+        System.Threading.Tasks.Task Delete(int id);
+        System.Threading.Tasks.Task Commit();
     }
 }

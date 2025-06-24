@@ -1,20 +1,18 @@
-﻿@model IEnumerable<GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto>
-
+﻿@model List<GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto>
 @{
-    ViewData["Title"] = "Algorithm Results";
+    ViewData["Title"] = "Wyniki algorytmów";
 }
 
-<h2>Algorithm Results</h2>
-<a asp-action="Run" class="btn btn-success mb-3">Run Algorithm</a>
+<h2>Wyniki algorytmów</h2>
 
-<table class="table table-striped">
+<table class="table table-bordered table-hover">
     <thead>
         <tr>
-            <th>ALGORITHM</th>
-            <th>CREATED AT</th>
-            <th>VALUE</th>
-            <th>DURATION</th>
-            <th></th> <!-- dla przycisku "Details" -->
+            <th>Algorytm</th>
+            <th>Data</th>
+            <th>Wynik</th>
+            <th>Czas działania</th>
+            <th>Akcje</th>
         </tr>
     </thead>
     <tbody>
@@ -22,14 +20,28 @@
         {
             <tr>
                 <td>@result.Algorithm</td>
-                <td>@result.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
-                <td>@result.ResultValue</td>
-                <td>@result.Duration.ToString("hh\\:mm\\:ss")</td> <!-- format H:M:S -->
+                <td>@result.CreatedAt.ToLocalTime().ToString("g")</td>
+                <td>@result.ResultValue.ToString("F2")</td>
+                <td>@result.Duration</td>
                 <td>
-                    <a class="btn btn-primary" asp-action="Details" asp-route-id="@result.Id">Details</a>
+                    <a asp-action="Details" asp-route-id="@result.Id" class="btn btn-primary btn-sm">Szczegóły</a>
+                    @if (result.IsEditable)
+                    {
+                        <a asp-action="Delete" asp-route-id="@result.Id" class="btn btn-danger btn-sm">Usuń</a>
+                    }
                 </td>
             </tr>
         }
     </tbody>
-
 </table>
+
+<h4>Uruchom nowy algorytm</h4>
+<form asp-action="Run" method="post">
+    <div class="form-group">
+        <select name="algorithm" class="form-control w-25">
+            <option value="Genetic">Algorytm genetyczny</option>
+            <option value="Ant">Algorytm mrówkowy</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-success mt-2">Uruchom</button>
+</form>

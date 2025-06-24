@@ -1,41 +1,37 @@
-﻿@using GroupPlanner.Application.AlgorithmResult
-@using Newtonsoft.Json
-@model GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto
-
+﻿@model GroupPlanner.Application.AlgorithmResult.AlgorithmResultDetailsDto
+@using GroupPlanner.Application.Algorithms
 @{
-    ViewData["Title"] = "Algorithm Result Details";
-    var details = JsonConvert.DeserializeObject<AlgorithmResultDetailsDto>(Model.ResultData);
+    var schedule = ViewBag.Schedule as List<ScheduleEntryDto>;
+    ViewData["Title"] = "Szczegóły wyniku";
 }
-<h2>Algorithm Result Details</h2>
+<h2>Szczegóły wyniku algorytmu</h2>
 
-<table class="table table-bordered">
+<p>
+    <strong>Algorytm:</strong> @ViewBag.Algorithm <br />
+    <strong>Wynik:</strong> @ViewBag.ResultValue <br />
+    <strong>Czas działania:</strong> @ViewBag.Duration
+</p>
+
+<table class="table table-striped">
     <thead>
         <tr>
             <th>Data</th>
-            <th>Zadeklarowany czas [h]</th>
-            <th>Numer Zadania</th>
-            <th>Nazwa Zadania</th>
-            <th>Priorytet Zadania</th>
-            <th>Numer Podzadania</th>
-            <th>Nazwa Podzadania</th>
-            <th>Czas [h]</th>
+            <th>Opis podzadania</th>
+            <th>Zadanie</th>
+            <th>Liczba godzin</th>
         </tr>
     </thead>
     <tbody>
-        @for (int i = 0; i < details.Availability.Count; i++)
+        @foreach (var entry in schedule.OrderBy(e => e.Date))
         {
             <tr>
-                <td>@details.Availability[i].Date.ToShortDateString()</td>
-                <td>@details.Availability[i].AvailableHours</td>
-
-                <td>@(i + 1)</td>
-                <td>@details.Tasks.ElementAtOrDefault(i)?.Name</td>
-                <td>@details.Tasks.ElementAtOrDefault(i)?.Priority</td>
-
-                <td>@details.Subtasks.ElementAtOrDefault(i)?.Id</td>
-                <td>@details.Subtasks.ElementAtOrDefault(i)?.Description</td>
-                <td>@details.Subtasks.ElementAtOrDefault(i)?.EstimatedTime</td>
+                <td>@entry.Date.ToString("yyyy-MM-dd")</td>
+                <td>@entry.SubtaskDescription</td>
+                <td>@entry.TaskEncodedName</td>
+                <td>@entry.Hours</td>
             </tr>
         }
     </tbody>
 </table>
+
+<a asp-action="Index" class="btn btn-secondary">Powrót</a>

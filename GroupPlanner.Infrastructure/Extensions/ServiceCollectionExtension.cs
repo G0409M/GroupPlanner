@@ -1,5 +1,6 @@
 ﻿using GroupPlanner.Domain.Interfaces;
 using GroupPlanner.Infrastructure.Persistance;
+using GroupPlanner.Infrastructure.Persistance.Repositories;
 using GroupPlanner.Infrastructure.Repositories;
 using GroupPlanner.Infrastructure.Seeders;
 using Microsoft.AspNetCore.Identity;
@@ -29,7 +30,7 @@ namespace GroupPlanner.Infrastructure.Extensions
 
             services.AddScoped<ITaskRepository, TaskRepository>();
             services.AddScoped<ISubtaskRepository, SubtaskRepository>();
-            services.AddScoped<IDailyAvailabilityRepository, DailyAvailabilityRepository>();
+            services.AddScoped<IDailyAvailabilityRepository, DailyAvailabilityRepository>(); 
             services.AddScoped<IAlgorithmResultRepository, AlgorithmResultRepository>();
 
 

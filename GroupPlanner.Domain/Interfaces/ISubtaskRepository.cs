@@ -13,5 +13,6 @@ namespace GroupPlanner.Domain.Interfaces
         System.Threading.Tasks.Task<IEnumerable<Subtask>> GetAllByEncodedName(string encodedName);
         System.Threading.Tasks.Task Delete(Subtask subtask);
         System.Threading.Tasks.Task<Subtask?> GetByIdAsync(int id);
+        Task<IEnumerable<Subtask>> GetAllByUserId(string userId);
     }
 }

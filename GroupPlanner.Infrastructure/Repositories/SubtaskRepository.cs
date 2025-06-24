@@ -40,6 +40,12 @@ namespace GroupPlanner.Infrastructure.Repositories
             return await _dbContext.Subtasks
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
-
+        public async Task<IEnumerable<Subtask>> GetAllByUserId(string userId)
+        {
+            return await _dbContext.Subtasks
+                .Include(s => s.Task) 
+                .Where(s => s.Task.CreatedById == userId)
+                .ToListAsync();
+        }
     }
 }

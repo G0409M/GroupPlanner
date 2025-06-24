@@ -1,137 +1,158 @@
 ﻿using AutoMapper;
 using GroupPlanner.Application.AlgorithmResult;
+using GroupPlanner.Application.Algorithms.Genetic;
+using GroupPlanner.Application.Algorithms;
 using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
 using GroupPlanner.Domain.Entities;
 using GroupPlanner.Domain.Interfaces;
-using GroupPlanner.Infrastructure.Repositories;
 using GroupPlanner.MVC.Extensions;
-using GroupPlanner.MVC.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json;
-using System.Diagnostics;
-using System.Text.Json;
 
 namespace GroupPlanner.MVC.Controllers
 {
+    [Authorize]
     public class AlgorithmResultController : Controller
     {
-        private readonly IAlgorithmResultRepository _algorithmResultRepository;
-        private readonly IDailyAvailabilityRepository _availabilityRepository;
+        private readonly IUserContext _userContext;
         private readonly ITaskRepository _taskRepository;
         private readonly ISubtaskRepository _subtaskRepository;
-        private readonly IUserContext _userContext;
+        private readonly IDailyAvailabilityRepository _availabilityRepository;
+        private readonly IAlgorithmResultRepository _algorithmResultRepository;
+        private readonly IGeneticAlgorithmService _geneticAlgorithmService;
+        //private readonly IAntAlgorithmService _antAlgorithmService;
         private readonly IMapper _mapper;
-        private readonly IHubContext<AlgorithmHub> _hubContext;
 
-
-        public AlgorithmResultController(IAlgorithmResultRepository algorithmResultRepository,IDailyAvailabilityRepository availabilityRepository, ITaskRepository taskRepository,
-        ISubtaskRepository subtaskRepository,IUserContext userContext,IMapper mapper, IHubContext<AlgorithmHub> hubContext)
+        public AlgorithmResultController(
+            IUserContext userContext,
+            ITaskRepository taskRepository,
+            ISubtaskRepository subtaskRepository,
+            IDailyAvailabilityRepository availabilityRepository,
+            IAlgorithmResultRepository algorithmResultRepository,
+            IGeneticAlgorithmService geneticAlgorithmService,
+            //IAntAlgorithmService antAlgorithmService,
+            IMapper mapper)
         {
-            _algorithmResultRepository = algorithmResultRepository;
-            _availabilityRepository = availabilityRepository;
+            _userContext = userContext;
             _taskRepository = taskRepository;
             _subtaskRepository = subtaskRepository;
-            _userContext = userContext;
+            _availabilityRepository = availabilityRepository;
+            _algorithmResultRepository = algorithmResultRepository;
+            _geneticAlgorithmService = geneticAlgorithmService;
+            //_antAlgorithmService = antAlgorithmService;
             _mapper = mapper;
-            _hubContext = hubContext;
         }
 
-        [Authorize]
         public async Task<IActionResult> Index()
         {
-            var results = await _algorithmResultRepository.GetAllAsync();
-            var dtos = _mapper.Map<IEnumerable<AlgorithmResultDto>>(results);
+            var user = _userContext.GetCurrentUser();
+            var results = await _algorithmResultRepository.GetAllByUserId(user.Id);
+            var dtos = _mapper.Map<List<AlgorithmResultDto>>(results);
             return View(dtos);
         }
 
-        [Authorize]
-        [HttpGet]
-        public IActionResult Run()
+        public async Task<IActionResult> Details(int id)
         {
-            return View(new AlgorithmResultDto());
+            var result = await _algorithmResultRepository.GetByIdAsync(id);
+            if (result == null) return NotFound();
+
+            var user = _userContext.GetCurrentUser();
+            if (result.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return RedirectToAction("NoAccess", "Home");
+
+            var schedule = JsonConvert.DeserializeObject<List<ScheduleEntryDto>>(result.ResultData);
+
+            var tasks = await _taskRepository.GetAllByUserId(user.Id);
+            var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
+            var availability = await _availabilityRepository.GetAllByUserId(user.Id);
+
+            var dto = new AlgorithmResultDetailsDto
+            {
+                Tasks = _mapper.Map<List<TaskDto>>(tasks),
+                Subtasks = _mapper.Map<List<SubtaskDto>>(subtasks),
+                Availability = _mapper.Map<List<DailyAvailabilityDto>>(availability)
+            };
+
+            ViewBag.Schedule = schedule;
+            ViewBag.Algorithm = result.Algorithm;
+            ViewBag.Duration = result.Duration;
+            ViewBag.ResultValue = result.ResultValue;
+
+            return View(dto);
         }
 
-        [Authorize]
         [HttpPost]
-        [Authorize]
-        [HttpPost]
-        public async Task<IActionResult> Run(AlgorithmType algorithmType)
+        public async Task<IActionResult> Run(AlgorithmType algorithm)
         {
             var user = _userContext.GetCurrentUser();
 
-            // 🔄 Powiadomienie klienta, że algorytm się rozpoczął
-            await _hubContext.Clients.All.SendAsync("AlgorithmStarted");
-
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            var availability = await _availabilityRepository.GetAllByUserId(user.Id);
             var tasks = await _taskRepository.GetAllByUserId(user.Id);
+            var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
+            var availability = await _availabilityRepository.GetAllByUserId(user.Id);
 
-            var allSubtasks = new List<Subtask>();
-            foreach (var task in tasks)
+            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+            var subtaskDtos = _mapper.Map<List<SubtaskDto>>(subtasks);
+            var availabilityDtos = _mapper.Map<List<DailyAvailabilityDto>>(availability);
+
+            var start = DateTime.UtcNow;
+            List<ScheduleEntryDto> result;
+
+            if (algorithm == AlgorithmType.Genetic)
+                result = await _geneticAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos);
+            else
+                result = await _geneticAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos);
+
+            var duration = DateTime.UtcNow - start;
+            var resultValue = ScheduleEvaluator.Evaluate(result, subtaskDtos, taskDtos, availabilityDtos);
+
+            var algorithmResult = new AlgorithmResult
             {
-                var taskSubtasks = await _subtaskRepository.GetAllByEncodedName(task.EncodedName!);
-                allSubtasks.AddRange(taskSubtasks);
-            }
-
-            // Symulacja działania algorytmu – sztuczne opóźnienie
-            await System.Threading.Tasks.Task.Delay(10_000);
-
-            stopwatch.Stop();
-
-            var resultDetails = new
-            {
-                Availabilities = availability.Select(a => new { a.Date, a.AvailableHours }),
-                Tasks = tasks.Select(t => new { t.Name, t.TaskType, t.Priority }),
-                Subtasks = allSubtasks.Select(s => new { s.Description, s.EstimatedTime, s.ProgressStatus })
-            };
-
-            var result = new AlgorithmResult
-            {
-                Algorithm = algorithmType,
-                CreatedAt = DateTime.UtcNow,
+                Algorithm = algorithm,
                 CreatedById = user.Id,
-                ResultValue = new Random().NextDouble(),
-                Duration = stopwatch.Elapsed, // używamy właściwości typu TimeSpan
-                ResultData = Newtonsoft.Json.JsonConvert.SerializeObject(resultDetails)
+                CreatedAt = DateTime.UtcNow,
+                Duration = duration,
+                ResultValue = resultValue,
+                ResultData = JsonConvert.SerializeObject(result)
             };
 
-            await _algorithmResultRepository.SaveAsync(result);
+            await _algorithmResultRepository.Create(algorithmResult);
 
-            await _hubContext.Clients.All.SendAsync("AlgorithmFinished");
-
-            this.SetNotification("success", $"Algorithm '{algorithmType}' has been executed.");
+            this.SetNotification("success", $"Algorithm {algorithm} completed successfully.");
             return RedirectToAction(nameof(Index));
         }
 
-
-        private double RunGeneticAlgorithm()
-        {
-            // Implementacja algorytmu genetycznego
-            return new Random().NextDouble();
-        }
-
-        private double RunAntAlgorithm()
-        {
-            // Implementacja algorytmu mrówkowego
-            return new Random().NextDouble();
-        }
-
-
         [HttpGet]
-        public async Task<IActionResult> Details(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var entity = (await _algorithmResultRepository.GetAllAsync()).FirstOrDefault(r => r.Id == id);
-            if (entity == null)
-                return NotFound();
+            var result = await _algorithmResultRepository.GetByIdAsync(id);
+            if (result == null) return NotFound();
 
-            var dto = _mapper.Map<AlgorithmResultDto>(entity);
-            return View(dto);
+            var user = _userContext.GetCurrentUser();
+            if (result.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return RedirectToAction("NoAccess", "Home");
+
+            return View(_mapper.Map<AlgorithmResultDto>(result));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteConfirmed(int id)
+        {
+            var result = await _algorithmResultRepository.GetByIdAsync(id);
+            if (result == null) return NotFound();
+
+            var user = _userContext.GetCurrentUser();
+            if (result.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return RedirectToAction("NoAccess", "Home");
+
+            await _algorithmResultRepository.Delete(id);
+            await _algorithmResultRepository.Commit();
+
+            this.SetNotification("success", "Algorithm result deleted successfully.");
+            return RedirectToAction(nameof(Index));
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using GroupPlanner.Domain.Entities;
+﻿using GroupPlanner.Application.Subtask;
+using GroupPlanner.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -22,5 +23,6 @@ namespace GroupPlanner.Application.Task
         public ProgressStatus ProgressStatus { get; set; } = ProgressStatus.Nierozpoczete;
         public string? EncodedName { get; set; }
         public bool IsEditable { get; set; }
+        public List<SubtaskDto> Subtasks { get; set; } = new();
     }
 }
