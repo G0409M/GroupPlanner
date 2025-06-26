@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using GroupPlanner.Application.Subtask;
-using GroupPlanner.Domain.Entities;
+﻿using GroupPlanner.Application.Subtask;
 
 namespace GroupPlanner.Application.Algorithms
 {

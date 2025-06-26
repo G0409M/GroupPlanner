@@ -12,6 +12,7 @@ using GroupPlanner.MVC.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using GroupPlanner.Application.Algorithms.Ant;
 
 namespace GroupPlanner.MVC.Controllers
 {
@@ -24,7 +25,7 @@ namespace GroupPlanner.MVC.Controllers
         private readonly IDailyAvailabilityRepository _availabilityRepository;
         private readonly IAlgorithmResultRepository _algorithmResultRepository;
         private readonly IGeneticAlgorithmService _geneticAlgorithmService;
-        //private readonly IAntAlgorithmService _antAlgorithmService;
+        private readonly IAntAlgorithmService _antAlgorithmService;
         private readonly IMapper _mapper;
 
         public AlgorithmResultController(
@@ -34,7 +35,7 @@ namespace GroupPlanner.MVC.Controllers
             IDailyAvailabilityRepository availabilityRepository,
             IAlgorithmResultRepository algorithmResultRepository,
             IGeneticAlgorithmService geneticAlgorithmService,
-            //IAntAlgorithmService antAlgorithmService,
+            IAntAlgorithmService antAlgorithmService,
             IMapper mapper)
         {
             _userContext = userContext;
@@ -43,7 +44,7 @@ namespace GroupPlanner.MVC.Controllers
             _availabilityRepository = availabilityRepository;
             _algorithmResultRepository = algorithmResultRepository;
             _geneticAlgorithmService = geneticAlgorithmService;
-            //_antAlgorithmService = antAlgorithmService;
+            _antAlgorithmService = antAlgorithmService;
             _mapper = mapper;
         }
 
@@ -86,7 +87,8 @@ namespace GroupPlanner.MVC.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Run(AlgorithmType algorithm)
+        [HttpPost]
+        public async Task<IActionResult> Run(AlgorithmRunViewModel model)
         {
             var user = _userContext.GetCurrentUser();
 
@@ -101,17 +103,40 @@ namespace GroupPlanner.MVC.Controllers
             var start = DateTime.UtcNow;
             List<ScheduleEntryDto> result;
 
-            if (algorithm == AlgorithmType.Genetic)
-                result = await _geneticAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos);
+            if (model.AlgorithmType == AlgorithmType.Genetic)
+            {
+                var parameters = new GeneticAlgorithmParameters
+                {
+                    PopulationSize = model.PopulationSize,
+                    Generations = model.Generations,
+                    CrossoverProbability = model.CrossoverProbability,
+                    MutationProbability = model.MutationProbability,
+                    TournamentSize = model.TournamentSize
+                };
+
+                result = await _geneticAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos, parameters);
+            }
             else
-                result = await _geneticAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos);
+            {
+                var parameters = new AntAlgorithmParameters
+                {
+                    AntCount = model.AntCount,
+                    Iterations = model.Iterations,
+                    Alpha = model.Alpha,
+                    Beta = model.Beta,
+                    EvaporationRate = model.EvaporationRate,
+                    Q = model.Q
+                };
+
+                result = await _antAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos, parameters);
+            }
 
             var duration = DateTime.UtcNow - start;
             var resultValue = ScheduleEvaluator.Evaluate(result, subtaskDtos, taskDtos, availabilityDtos);
 
             var algorithmResult = new AlgorithmResult
             {
-                Algorithm = algorithm,
+                Algorithm = model.AlgorithmType,
                 CreatedById = user.Id,
                 CreatedAt = DateTime.UtcNow,
                 Duration = duration,
@@ -121,9 +146,10 @@ namespace GroupPlanner.MVC.Controllers
 
             await _algorithmResultRepository.Create(algorithmResult);
 
-            this.SetNotification("success", $"Algorithm {algorithm} completed successfully.");
+            this.SetNotification("success", $"Algorithm {model.AlgorithmType} completed successfully.");
             return RedirectToAction(nameof(Index));
         }
+
 
         [HttpGet]
         public async Task<IActionResult> Delete(int id)

@@ -15,7 +15,7 @@ namespace GroupPlanner.Application.Algorithms.Genetic
 {
     public interface IGeneticAlgorithmService
     {
-        Task<List<ScheduleEntryDto>> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities);
+        Task<List<ScheduleEntryDto>> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities, GeneticAlgorithmParameters parameters);
 
     }
 }

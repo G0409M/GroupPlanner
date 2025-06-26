@@ -1,4 +1,5 @@
-﻿using GroupPlanner.Domain.Interfaces;
+﻿using GroupPlanner.Application.Algorithms.Ant;
+using GroupPlanner.Domain.Interfaces;
 using GroupPlanner.Infrastructure.Persistance;
 using GroupPlanner.Infrastructure.Persistance.Repositories;
 using GroupPlanner.Infrastructure.Repositories;
@@ -32,6 +33,8 @@ namespace GroupPlanner.Infrastructure.Extensions
             services.AddScoped<ISubtaskRepository, SubtaskRepository>();
             services.AddScoped<IDailyAvailabilityRepository, DailyAvailabilityRepository>(); 
             services.AddScoped<IAlgorithmResultRepository, AlgorithmResultRepository>();
+            services.AddScoped<IAntAlgorithmService, AntAlgorithmService>();
+
 
 
         }

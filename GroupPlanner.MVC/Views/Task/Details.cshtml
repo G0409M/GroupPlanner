@@ -11,6 +11,8 @@
         <h1>@Model.Name Details</h1>
         <hr />
         <dl class="bg-light p-3 rounded">
+            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.Deadline)</dt>
+            <dd>@Html.DisplayFor(model => model.Deadline)</dd>
             <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.TaskType)</dt>
             <dd>@Html.DisplayFor(model => model.TaskType)</dd>
             <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.Description)</dt>
