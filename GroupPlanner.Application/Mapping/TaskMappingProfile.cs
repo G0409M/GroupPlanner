@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using GroupPlanner.Application.AlgorithmResult;
+using GroupPlanner.Application.Algorithms;
 using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
@@ -51,6 +52,10 @@ namespace GroupPlanner.Application.Mapping
 
             CreateMap<GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto, GroupPlanner.Domain.Entities.AlgorithmResult>()
                 .ForMember(dest => dest.Algorithm, opt => opt.MapFrom(src => src.Algorithm));
+
+            
+
+
         }
     }
 

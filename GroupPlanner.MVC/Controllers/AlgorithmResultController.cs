@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using GroupPlanner.Application.Algorithms.Ant;
+using Microsoft.AspNetCore.SignalR;
+using GroupPlanner.Application.Hubs;
 
 namespace GroupPlanner.MVC.Controllers
 {
@@ -27,6 +29,8 @@ namespace GroupPlanner.MVC.Controllers
         private readonly IGeneticAlgorithmService _geneticAlgorithmService;
         private readonly IAntAlgorithmService _antAlgorithmService;
         private readonly IMapper _mapper;
+        private readonly IHubContext<AlgorithmHub> _hubContext;
+
 
         public AlgorithmResultController(
             IUserContext userContext,
@@ -36,7 +40,8 @@ namespace GroupPlanner.MVC.Controllers
             IAlgorithmResultRepository algorithmResultRepository,
             IGeneticAlgorithmService geneticAlgorithmService,
             IAntAlgorithmService antAlgorithmService,
-            IMapper mapper)
+            IMapper mapper,
+            IHubContext<AlgorithmHub> hubContext)
         {
             _userContext = userContext;
             _taskRepository = taskRepository;
@@ -46,6 +51,8 @@ namespace GroupPlanner.MVC.Controllers
             _geneticAlgorithmService = geneticAlgorithmService;
             _antAlgorithmService = antAlgorithmService;
             _mapper = mapper;
+
+            _hubContext = hubContext;
         }
 
         public async Task<IActionResult> Index()
@@ -55,6 +62,77 @@ namespace GroupPlanner.MVC.Controllers
             var dtos = _mapper.Map<List<AlgorithmResultDto>>(results);
             return View(dtos);
         }
+
+        public IActionResult Run()
+        {
+            return View(new AlgorithmRunViewModel());
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Run(AlgorithmRunViewModel model)
+        {
+            var user = _userContext.GetCurrentUser();
+            var tasks = await _taskRepository.GetAllByUserId(user.Id);
+            var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
+            var availability = await _availabilityRepository.GetAllByUserId(user.Id);
+
+            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+            var subtaskDtos = _mapper.Map<List<SubtaskDto>>(subtasks);
+            var availabilityDtos = _mapper.Map<List<DailyAvailabilityDto>>(availability);
+
+            var start = DateTime.UtcNow;
+            AlgorithmRunResultDto runResult;
+
+            if (model.AlgorithmType == AlgorithmType.Genetic)
+            {
+                var parameters = new GeneticAlgorithmParameters
+                {
+                    PopulationSize = model.PopulationSize,
+                    Generations = model.Generations,
+                    CrossoverProbability = model.CrossoverProbability,
+                    MutationProbability = model.MutationProbability,
+                    TournamentSize = model.TournamentSize
+                };
+
+                runResult = await _geneticAlgorithmService.RunAsync(
+                    taskDtos, subtaskDtos, availabilityDtos, parameters);
+            }
+            else
+            {
+                var parameters = new AntAlgorithmParameters
+                {
+                    AntCount = model.AntCount,
+                    Iterations = model.Iterations,
+                    Alpha = model.Alpha,
+                    Beta = model.Beta,
+                    EvaporationRate = model.EvaporationRate,
+                    Q = model.Q
+                };
+
+                runResult = await _antAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos, parameters);
+            }
+
+            var duration = DateTime.UtcNow - start;
+
+            var algorithmResult = new AlgorithmResult
+            {
+                Algorithm = model.AlgorithmType,
+                CreatedById = user.Id,
+                CreatedAt = DateTime.UtcNow,
+                Duration = duration,
+                ResultValue = runResult.BestScore,
+                ResultData = JsonConvert.SerializeObject(runResult.Schedule),
+                ParametersJson = runResult.ParametersJson,
+                ScoreHistoryJson = runResult.ScoreHistoryJson
+            };
+
+            await _algorithmResultRepository.Create(algorithmResult);
+
+            return Json(new { success = true, resultId = algorithmResult.Id });
+        }
+
+
+
 
         public async Task<IActionResult> Details(int id)
         {
@@ -82,74 +160,10 @@ namespace GroupPlanner.MVC.Controllers
             ViewBag.Algorithm = result.Algorithm;
             ViewBag.Duration = result.Duration;
             ViewBag.ResultValue = result.ResultValue;
+            ViewBag.ScoreHistory = result.ScoreHistoryJson;
 
             return View(dto);
         }
-
-        [HttpPost]
-        [HttpPost]
-        public async Task<IActionResult> Run(AlgorithmRunViewModel model)
-        {
-            var user = _userContext.GetCurrentUser();
-
-            var tasks = await _taskRepository.GetAllByUserId(user.Id);
-            var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
-            var availability = await _availabilityRepository.GetAllByUserId(user.Id);
-
-            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
-            var subtaskDtos = _mapper.Map<List<SubtaskDto>>(subtasks);
-            var availabilityDtos = _mapper.Map<List<DailyAvailabilityDto>>(availability);
-
-            var start = DateTime.UtcNow;
-            List<ScheduleEntryDto> result;
-
-            if (model.AlgorithmType == AlgorithmType.Genetic)
-            {
-                var parameters = new GeneticAlgorithmParameters
-                {
-                    PopulationSize = model.PopulationSize,
-                    Generations = model.Generations,
-                    CrossoverProbability = model.CrossoverProbability,
-                    MutationProbability = model.MutationProbability,
-                    TournamentSize = model.TournamentSize
-                };
-
-                result = await _geneticAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos, parameters);
-            }
-            else
-            {
-                var parameters = new AntAlgorithmParameters
-                {
-                    AntCount = model.AntCount,
-                    Iterations = model.Iterations,
-                    Alpha = model.Alpha,
-                    Beta = model.Beta,
-                    EvaporationRate = model.EvaporationRate,
-                    Q = model.Q
-                };
-
-                result = await _antAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos, parameters);
-            }
-
-            var duration = DateTime.UtcNow - start;
-            var resultValue = ScheduleEvaluator.Evaluate(result, subtaskDtos, taskDtos, availabilityDtos);
-
-            var algorithmResult = new AlgorithmResult
-            {
-                Algorithm = model.AlgorithmType,
-                CreatedById = user.Id,
-                CreatedAt = DateTime.UtcNow,
-                Duration = duration,
-                ResultValue = resultValue,
-                ResultData = JsonConvert.SerializeObject(result)
-            };
-
-            await _algorithmResultRepository.Create(algorithmResult);
-
-            this.SetNotification("success", $"Algorithm {model.AlgorithmType} completed successfully.");
-            return RedirectToAction(nameof(Index));
-        }
-
 
         [HttpGet]
         public async Task<IActionResult> Delete(int id)

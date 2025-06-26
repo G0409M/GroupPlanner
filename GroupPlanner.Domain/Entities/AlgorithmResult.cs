@@ -23,6 +23,9 @@ namespace GroupPlanner.Domain.Entities
         public string ResultData { get; set; } = default!;
         public TimeSpan Duration { get; set; }
 
+
+        public string? ParametersJson { get; set; }
+        public string? ScoreHistoryJson { get; set; }
         public string? CreatedById { get; set; }
         public IdentityUser? CreatedBy { get; set; }
     }

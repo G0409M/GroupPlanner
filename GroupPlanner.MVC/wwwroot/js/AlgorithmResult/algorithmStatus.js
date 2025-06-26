@@ -1,22 +1,63 @@
-﻿const connection = new signalR.HubConnectionBuilder()
-    .withUrl("/algorithmHub")
-    .build();
+﻿document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("run-form");
+    const progressBar = document.getElementById("progressBar");
+    const statusText = document.getElementById("statusText");
+    const loadingSection = document.getElementById("loading-section");
 
-connection.on("AlgorithmStarted", () => {
-    document.getElementById("statusArea").style.display = "block";
-    document.getElementById("statusMessage").innerText = "Algorithm is running...";
-});
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/algorithmHub")
+        .build();
 
-connection.on("AlgorithmFinished", () => {
-    document.getElementById("statusMessage").innerText = "Algorithm finished!";
-    setTimeout(() => {
-        document.getElementById("statusArea").style.display = "none";
-    }, 5000);
-});
+    connection.on("AlgorithmProgress", function (data) {
+        const percentage = ((data.generation + 1) / data.totalGenerations) * 100;
+        progressBar.style.width = percentage + "%";
+        progressBar.innerText = Math.floor(percentage) + "%";
+        statusText.innerText = `Generacja ${data.generation + 1}, score: ${data.score.toFixed(4)}`;
+    });
 
-connection.start().catch(err => console.error(err));
+    connection.start().catch(err => console.error(err));
 
-// Optional: hook into form to send start message (if needed)
-document.getElementById("runBtn")?.addEventListener("click", function () {
-    connection.invoke("NotifyAlgorithmStarted").catch(err => console.error(err));
+    if (form) {
+        form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            // Resetuj pasek i pokaż sekcję ładowania
+            progressBar.style.width = "0%";
+            progressBar.innerText = "0%";
+            progressBar.classList.remove("bg-success");
+            progressBar.classList.add("bg-info");
+            statusText.innerText = "";
+            loadingSection.style.display = "block";
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch(form.action, {
+                    method: "POST",
+                    body: new URLSearchParams(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    progressBar.classList.remove("bg-info");
+                    progressBar.classList.add("bg-success");
+                    progressBar.style.width = "100%";
+                    progressBar.innerText = "100%";
+                    statusText.innerText = "Algorytm zakończony.";
+
+                    // krótka pauza zanim przekierujemy
+                    setTimeout(() => {
+                        window.location.href = `/AlgorithmResult/Details/${result.resultId}`;
+                    }, 1000); // 1 sekunda
+                } else {
+                    alert("Nie udało się uruchomić algorytmu.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Wystąpił błąd podczas uruchamiania algorytmu.");
+            }
+        });
+    }
 });

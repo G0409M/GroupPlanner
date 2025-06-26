@@ -34,4 +34,19 @@
     </tbody>
 </table>
 
+<h4>Funkcja celu (Score w kolejnych iteracjach)</h4>
+<canvas id="scoreChart" width="600" height="300"></canvas>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/AlgorithmResult/scoreChart.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const scoreHistoryJson = '@Html.Raw(ViewBag.ScoreHistory ?? "[]")';
+            renderScoreChart(scoreHistoryJson);
+        });
+    </script>
+}
+
+
 <a asp-action="Index" class="btn btn-secondary">Powrót</a>

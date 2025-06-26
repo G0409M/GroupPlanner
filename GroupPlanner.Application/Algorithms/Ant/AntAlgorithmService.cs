@@ -1,4 +1,5 @@
-﻿using GroupPlanner.Application.DailyAvailability;
+﻿using GroupPlanner.Application.AlgorithmResult;
+using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
 using System;
@@ -6,6 +7,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+
 
 namespace GroupPlanner.Application.Algorithms.Ant
 {
@@ -13,13 +16,12 @@ namespace GroupPlanner.Application.Algorithms.Ant
     {
         private readonly Random _random = new();
 
-        public async Task<List<ScheduleEntryDto>> RunAsync(
-            List<TaskDto> tasks,
-            List<SubtaskDto> subtasks,
-            List<DailyAvailabilityDto> availabilities,
-            AntAlgorithmParameters parameters)
+        public async Task<AlgorithmRunResultDto> RunAsync(
+    List<TaskDto> tasks,
+    List<SubtaskDto> subtasks,
+    List<DailyAvailabilityDto> availabilities,
+    AntAlgorithmParameters parameters)
         {
-            // Inicjalizacja feromonów
             var pheromones = new Dictionary<(int subtaskId, DateTime date), double>();
             foreach (var subtask in subtasks)
             {
@@ -31,6 +33,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
 
             List<ScheduleEntryDto> bestSchedule = new();
             double bestScore = double.MinValue;
+            List<double> scoreHistory = new();
 
             for (int iter = 0; iter < parameters.Iterations; iter++)
             {
@@ -74,7 +77,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
                     }
                 }
 
-                // Aktualizacja feromonów
+                scoreHistory.Add(bestScore);
+
                 foreach (var key in pheromones.Keys.ToList())
                 {
                     pheromones[key] *= (1 - parameters.EvaporationRate);
@@ -90,30 +94,42 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 }
             }
 
-            return bestSchedule;
+            return new AlgorithmRunResultDto
+            {
+                Schedule = bestSchedule,
+                BestScore = bestScore,
+                ParametersJson = JsonConvert.SerializeObject(parameters),
+                ScoreHistoryJson = JsonConvert.SerializeObject(scoreHistory)
+            };
         }
 
         private double Overload(List<ScheduleEntryDto> schedule, DateTime day, List<DailyAvailabilityDto> availabilities)
         {
-            var assigned = schedule.Where(s => s.Date == day).Sum(s => s.Hours);
-            var limit = availabilities.FirstOrDefault(a => a.Date == day)?.AvailableHours ?? 0;
-            return Math.Max(0, assigned - limit);
+            var used = schedule.Where(e => e.Date == day).Sum(e => e.Hours);
+            var available = availabilities.FirstOrDefault(a => a.Date == day)?.AvailableHours ?? 0;
+            return Math.Max(0, used - available);
         }
 
         private DateTime RouletteSelect(List<DateTime> options, List<double> probabilities)
         {
-            double r = _random.NextDouble();
+            var rand = new Random();
+            var r = rand.NextDouble();
             double cumulative = 0.0;
 
             for (int i = 0; i < options.Count; i++)
             {
                 cumulative += probabilities[i];
                 if (r < cumulative)
+                {
                     return options[i];
+                }
             }
-
-            return options.Last(); // fallback
+            return options.Last();
         }
+
+
+       
+       
     }
 
 }

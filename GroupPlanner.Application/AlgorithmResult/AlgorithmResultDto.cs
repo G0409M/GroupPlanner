@@ -17,5 +17,7 @@ namespace GroupPlanner.Application.AlgorithmResult
         public string ResultData { get; set; } = default!;
         public TimeSpan Duration { get; set; }
         public bool IsEditable { get; set; }
+        public string? ParametersJson { get; set; }
+        public string? ScoreHistoryJson { get; set; }
     }
 }

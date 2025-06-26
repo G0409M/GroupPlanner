@@ -35,13 +35,7 @@
     </tbody>
 </table>
 
-<h4>Uruchom nowy algorytm</h4>
-<form asp-action="Run" method="post">
-    <div class="form-group">
-        <select name="algorithm" class="form-control w-25">
-            <option value="Genetic">Algorytm genetyczny</option>
-            <option value="Ant">Algorytm mrówkowy</option>
-        </select>
-    </div>
-    <button type="submit" class="btn btn-success mt-2">Uruchom</button>
-</form>
+<div class="mt-4">
+    <a asp-action="Run" class="btn btn-success">Uruchom nowy algorytm</a>
+</div>
+
