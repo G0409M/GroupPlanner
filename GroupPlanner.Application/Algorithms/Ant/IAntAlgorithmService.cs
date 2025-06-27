@@ -12,6 +12,11 @@ namespace GroupPlanner.Application.Algorithms.Ant
 {
     public interface IAntAlgorithmService
     {
-        Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks, List<SubtaskDto> subtasks, List<DailyAvailabilityDto> availabilities, AntAlgorithmParameters parameters);
+        Task<AlgorithmRunResultDto> RunAsync(
+           List<TaskDto> tasks,
+           List<SubtaskDto> subtasks,
+           List<DailyAvailabilityDto> availabilities,
+           AntAlgorithmParameters parameters,
+           Func<int, double, System.Threading.Tasks.Task>? reportProgres);
     }
 }

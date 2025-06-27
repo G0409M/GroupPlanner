@@ -1,9 +1,23 @@
 ﻿@model GroupPlanner.Application.AlgorithmResult.AlgorithmResultDetailsDto
 @using GroupPlanner.Application.Algorithms
+
 @{
     var schedule = ViewBag.Schedule as List<ScheduleEntryDto>;
-    ViewData["Title"] = "Szczegóły wyniku";
+
+    // Lista unikalnych nazw zadań
+    var taskNames = schedule.Select(s => s.TaskEncodedName).Distinct().ToList();
+
+    // Przygotowanie kontrastowych kolorów (np. 0, 60, 120, 180, ...)
+    var taskColors = new Dictionary<string, string>();
+    int taskCount = taskNames.Count;
+    for (int i = 0; i < taskCount; i++)
+    {
+        int hue = (i * 360 / taskCount); // równy odstęp na kole barw
+        taskColors[taskNames[i]] = $"hsl({hue}, 60%, 85%)"; // kontrastowe, ale nadal jasne
+    }
 }
+
+
 <h2>Szczegóły wyniku algorytmu</h2>
 
 <p>
@@ -12,7 +26,7 @@
     <strong>Czas działania:</strong> @ViewBag.Duration
 </p>
 
-<table class="table table-striped">
+<table class="table">
     <thead>
         <tr>
             <th>Data</th>
@@ -24,16 +38,31 @@
     <tbody>
         @foreach (var entry in schedule.OrderBy(e => e.Date))
         {
+            var bgColor = taskColors[entry.TaskEncodedName];
             <tr>
-                <td>@entry.Date.ToString("yyyy-MM-dd")</td>
-                <td>@entry.SubtaskDescription</td>
-                <td>@entry.TaskEncodedName</td>
-                <td>@entry.Hours</td>
+                <td style="background-color: @bgColor">@entry.Date.ToString("yyyy-MM-dd")</td>
+                <td style="background-color: @bgColor">@entry.SubtaskDescription</td>
+                <td style="background-color: @bgColor">@entry.TaskEncodedName</td>
+                <td style="background-color: @bgColor">@entry.Hours</td>
             </tr>
         }
+
     </tbody>
 </table>
 
+<!-- Legenda kolorów -->
+<h5>Legenda kolorów zadań:</h5>
+<ul class="list-unstyled">
+    @foreach (var kvp in taskColors)
+    {
+        <li style="margin-bottom: 5px;">
+            <span style="display: inline-block; width: 20px; height: 20px; background-color: @kvp.Value; border: 1px solid #ccc; margin-right: 10px;"></span>
+            <strong>@kvp.Key</strong>
+        </li>
+    }
+</ul>
+
+<!-- Wykres -->
 <h4>Funkcja celu (Score w kolejnych iteracjach)</h4>
 <canvas id="scoreChart" width="600" height="300"></canvas>
 
@@ -47,6 +76,5 @@
         });
     </script>
 }
-
 
 <a asp-action="Index" class="btn btn-secondary">Powrót</a>

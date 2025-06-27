@@ -2,13 +2,7 @@
 using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
-
 
 namespace GroupPlanner.Application.Algorithms.Ant
 {
@@ -17,10 +11,11 @@ namespace GroupPlanner.Application.Algorithms.Ant
         private readonly Random _random = new();
 
         public async Task<AlgorithmRunResultDto> RunAsync(
-    List<TaskDto> tasks,
-    List<SubtaskDto> subtasks,
-    List<DailyAvailabilityDto> availabilities,
-    AntAlgorithmParameters parameters)
+            List<TaskDto> tasks,
+            List<SubtaskDto> subtasks,
+            List<DailyAvailabilityDto> availabilities,
+            AntAlgorithmParameters parameters,
+            Func<int, double, System.Threading.Tasks.Task>? reportProgress = null) // ← dodane
         {
             var pheromones = new Dictionary<(int subtaskId, DateTime date), double>();
             foreach (var subtask in subtasks)
@@ -79,11 +74,13 @@ namespace GroupPlanner.Application.Algorithms.Ant
 
                 scoreHistory.Add(bestScore);
 
+                // Wyparowanie
                 foreach (var key in pheromones.Keys.ToList())
                 {
                     pheromones[key] *= (1 - parameters.EvaporationRate);
                 }
 
+                // Aktualizacja feromonów
                 foreach (var (schedule, score) in solutions)
                 {
                     foreach (var entry in schedule)
@@ -92,6 +89,10 @@ namespace GroupPlanner.Application.Algorithms.Ant
                         pheromones[key] += parameters.Q * (score / 100.0);
                     }
                 }
+
+                // ⏱️ Wysyłanie postępu
+                if (reportProgress != null)
+                    await reportProgress(iter, bestScore);
             }
 
             return new AlgorithmRunResultDto
@@ -112,8 +113,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
 
         private DateTime RouletteSelect(List<DateTime> options, List<double> probabilities)
         {
-            var rand = new Random();
-            var r = rand.NextDouble();
+            var r = _random.NextDouble();
             double cumulative = 0.0;
 
             for (int i = 0; i < options.Count; i++)
@@ -126,10 +126,5 @@ namespace GroupPlanner.Application.Algorithms.Ant
             }
             return options.Last();
         }
-
-
-       
-       
     }
-
 }

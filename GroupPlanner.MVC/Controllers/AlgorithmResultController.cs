@@ -95,7 +95,19 @@ namespace GroupPlanner.MVC.Controllers
                 };
 
                 runResult = await _geneticAlgorithmService.RunAsync(
-                    taskDtos, subtaskDtos, availabilityDtos, parameters);
+                    taskDtos,
+                    subtaskDtos,
+                    availabilityDtos,
+                    parameters,
+                    async (generation, score) =>
+                    {
+                        await _hubContext.Clients.User(user.Id.ToString()).SendAsync("AlgorithmProgress", new
+                        {
+                            generation,
+                            score,
+                            totalGenerations = parameters.Generations
+                        });
+                    });
             }
             else
             {
@@ -109,7 +121,21 @@ namespace GroupPlanner.MVC.Controllers
                     Q = model.Q
                 };
 
-                runResult = await _antAlgorithmService.RunAsync(taskDtos, subtaskDtos, availabilityDtos, parameters);
+                runResult = await _antAlgorithmService.RunAsync(
+                    taskDtos,
+                    subtaskDtos,
+                    availabilityDtos,
+                    parameters,
+                    async (iteration, score) =>
+                    {
+                        await _hubContext.Clients.User(user.Id.ToString()).SendAsync("AlgorithmProgress", new
+                        {
+                            generation = iteration,
+                            score,
+                            totalGenerations = parameters.Iterations
+                        });
+                    });
+
             }
 
             var duration = DateTime.UtcNow - start;

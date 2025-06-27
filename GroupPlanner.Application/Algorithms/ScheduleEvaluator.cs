@@ -42,24 +42,32 @@ namespace GroupPlanner.Application.Algorithms
                 });
             timeFitScore = 1.0 - (badDays / (double)(groupedByDate.Count == 0 ? 1 : groupedByDate.Count));
 
-            // 2. coverageScore: ile podzadań w ogóle zaplanowano
-            var scheduledSubtaskIds = schedule
-                .Select(s => s.Subtask?.Id)
-                .Where(id => id != null)
-                .Distinct()
-                .ToHashSet();
-            coverageScore = scheduledSubtaskIds.Count / (double)(subtasks.Count == 0 ? 1 : subtasks.Count);
+            // 2. coverageScore: liczba podzadań, które mają przypisany jakikolwiek czas
+            int coveredCount = subtasks.Count(st =>
+                schedule.Any(s => s.Subtask?.Id == st.Id));
 
-            // 3. allocationScore: dopasowanie zaplanowanych godzin do EstimatedTime
+            coverageScore = coveredCount / (double)(subtasks.Count == 0 ? 1 : subtasks.Count);
+
+            // 3. allocationScore: proporcja zaplanowanych godzin do EstimatedTime
+            // oraz nowa: underallocationPenalty – kara za niewystarczające przypisanie
+            int underallocated = 0;
+
             allocationScore = subtasks.Sum(st =>
             {
                 var scheduled = schedule
                     .Where(s => s.Subtask?.Id == st.Id)
                     .Sum(s => s.Hours);
 
-                var ratio = Math.Min(scheduled / st.EstimatedTime, 1.0); // maks. 1.0
+                if (scheduled < 0.95 * st.EstimatedTime) // mniej niż 95%
+                    underallocated++;
+
+                var ratio = Math.Min(scheduled / st.EstimatedTime, 1.0);
                 return ratio;
             }) / (double)(subtasks.Count == 0 ? 1 : subtasks.Count);
+
+            // Nowy czynnik: kara za braki w zaplanowaniu
+            double underallocationPenalty = 1.0 - (underallocated / (double)(subtasks.Count == 0 ? 1 : subtasks.Count));
+
 
             // 4. deadlineScore: czy subtaski zakończono przed terminem
             int missedDeadlines = 0;
@@ -123,12 +131,13 @@ namespace GroupPlanner.Application.Algorithms
             }
 
             // Końcowy score
-            var score = 0.2 * timeFitScore
-                      + 0.2 * deadlineScore
-                      + 0.2 * coverageScore
-                      + 0.2 * allocationScore
-                      + 0.1 * orderScore
-                      + 0.1 * balanceScore;
+            var score = 0.15 * timeFitScore
+              + 0.15 * deadlineScore
+              + 0.15 * coverageScore
+              + 0.2 * allocationScore
+              + 0.15 * underallocationPenalty
+              + 0.1 * orderScore
+              + 0.1 * balanceScore;
 
             return Math.Round(score, 6);
         }

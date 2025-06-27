@@ -39,6 +39,19 @@
                 });
 
                 const result = await response.json();
+                if (result.success) {
+                    progressBar.classList.remove("bg-info");
+                    progressBar.classList.add("bg-success");
+                    progressBar.style.width = "100%";
+                    progressBar.innerText = "100%";
+                    statusText.innerText = "Algorytm zakończony.";
+
+                    // ✅ Pauza 3 sekundy przed przekierowaniem
+                    const resultId = result.resultId;
+                    setTimeout(() => {
+                        window.location.href = `/AlgorithmResult/Details/${resultId}`;
+                    }, 3000);
+                }
 
                 if (result.success) {
                     progressBar.classList.remove("bg-info");
@@ -54,10 +67,15 @@
                 } else {
                     alert("Nie udało się uruchomić algorytmu.");
                 }
+
             } catch (error) {
                 console.error(error);
                 alert("Wystąpił błąd podczas uruchamiania algorytmu.");
             }
         });
     }
+   
+
+
+
 });
