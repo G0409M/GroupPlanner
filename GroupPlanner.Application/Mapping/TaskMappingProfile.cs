@@ -38,7 +38,10 @@ namespace GroupPlanner.Application.Mapping
                 .ForMember(dto => dto.Subtasks, opt => opt.MapFrom(src => src.Subtasks)); // 🆕
 
             // Subtask
-            CreateMap<SubtaskDto, Domain.Entities.Subtask>().ReverseMap();
+            CreateMap<SubtaskDto, Domain.Entities.Subtask>()
+                .ForMember(e => e.Order, opt => opt.MapFrom(src => src.Order))
+                .ReverseMap();
+
 
             // Availability
             CreateMap<GroupPlanner.Domain.Entities.DailyAvailability, DailyAvailabilityDto>().ReverseMap();

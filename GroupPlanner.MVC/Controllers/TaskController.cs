@@ -161,9 +161,14 @@ namespace GroupPlanner.MVC.Controllers
             var subtask = _mapper.Map<Domain.Entities.Subtask>(dto);
             subtask.TaskId = task.Id;
 
+            // ustalamy kolejny numer porządkowy
+            var existing = await _subtaskRepository.GetAllByTaskId(task.Id);
+            subtask.Order = existing.Count() + 1;
+
             await _subtaskRepository.Create(subtask);
             return Ok();
         }
+
 
         [HttpGet]
         [Route("Task/{encodedName}/Subtask")]

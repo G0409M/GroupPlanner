@@ -47,5 +47,13 @@ namespace GroupPlanner.Infrastructure.Repositories
                 .Where(s => s.Task.CreatedById == userId)
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<Subtask>> GetAllByTaskId(int taskId)
+        {
+            return await _dbContext.Subtasks
+                .Where(s => s.TaskId == taskId)
+                .ToListAsync();
+        }
+
     }
 }

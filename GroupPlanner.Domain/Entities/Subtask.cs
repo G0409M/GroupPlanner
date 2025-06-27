@@ -12,6 +12,7 @@ namespace GroupPlanner.Domain.Entities
         public string Description { get; set; } = default!;
         public ProgressStatus ProgressStatus { get; set; } = ProgressStatus.Nierozpoczete;
         public double EstimatedTime { get; set; }= 1.0;
+        public int Order { get; set; }
         public int TaskId { get; set; } = default!;
         public Task Task { get; set; } = default!;
     }

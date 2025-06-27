@@ -1,6 +1,7 @@
 ﻿using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
+using GroupPlanner.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,131 +18,124 @@ namespace GroupPlanner.Application.Algorithms
     public static class ScheduleEvaluator
     {
         public static double Evaluate(
-            List<ScheduleEntryDto> schedule,
-            List<SubtaskDto> subtasks,
-            List<TaskDto> tasks,
-            List<DailyAvailabilityDto> availability)
+    List<ScheduleEntryDto> schedule,
+    List<SubtaskDto> subtasks,
+    List<TaskDto> tasks,
+    List<DailyAvailabilityDto> availability)
         {
-            double timeFitScore = 1.0;
-            double deadlineScore = 1.0;
-            double orderScore = 1.0;
-            double balanceScore = 1.0;
-            double coverageScore = 1.0;
-            double allocationScore = 1.0;
+            double score = 0.0;
 
-            var groupedByDate = schedule
-                .GroupBy(e => e.Date)
-                .ToDictionary(g => g.Key, g => g.Sum(e => e.Hours));
-
-            // 1. timeFitScore: nie przekraczamy dostępności
-            int badDays = groupedByDate
-                .Count(day =>
-                {
-                    var dailyLimit = availability.FirstOrDefault(a => a.Date == day.Key)?.AvailableHours ?? 0;
-                    return day.Value > dailyLimit;
-                });
-            timeFitScore = 1.0 - (badDays / (double)(groupedByDate.Count == 0 ? 1 : groupedByDate.Count));
-
-            // 2. coverageScore: liczba podzadań, które mają przypisany jakikolwiek czas
-            int coveredCount = subtasks.Count(st =>
-                schedule.Any(s => s.Subtask?.Id == st.Id));
-
-            coverageScore = coveredCount / (double)(subtasks.Count == 0 ? 1 : subtasks.Count);
-
-            // 3. allocationScore: proporcja zaplanowanych godzin do EstimatedTime
-            // oraz nowa: underallocationPenalty – kara za niewystarczające przypisanie
-            int underallocated = 0;
-
-            allocationScore = subtasks.Sum(st =>
-            {
-                var scheduled = schedule
-                    .Where(s => s.Subtask?.Id == st.Id)
-                    .Sum(s => s.Hours);
-
-                if (scheduled < 0.95 * st.EstimatedTime) // mniej niż 95%
-                    underallocated++;
-
-                var ratio = Math.Min(scheduled / st.EstimatedTime, 1.0);
-                return ratio;
-            }) / (double)(subtasks.Count == 0 ? 1 : subtasks.Count);
-
-            // Nowy czynnik: kara za braki w zaplanowaniu
-            double underallocationPenalty = 1.0 - (underallocated / (double)(subtasks.Count == 0 ? 1 : subtasks.Count));
+            var availabilityByDate = availability
+            .GroupBy(a => a.Date.Date)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Sum(x => x.AvailableHours)
+            );
 
 
-            // 4. deadlineScore: czy subtaski zakończono przed terminem
-            int missedDeadlines = 0;
-            var groupedByTask = subtasks
-                .GroupBy(s => s.TaskEncodedName)
+            var scheduleByDate = schedule
+                .GroupBy(e => e.Date.Date)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            foreach (var kvp in groupedByTask)
+            foreach (var task in tasks)
             {
-                var subtaskIds = kvp.Value.Select(s => s.Id).ToHashSet();
-                var deadline = kvp.Value.FirstOrDefault()?.TaskDeadline;
+                var taskSubtasks = subtasks
+                    .Where(s => s.TaskEncodedName == task.EncodedName)
+                    .OrderBy(s => s.Order)
+                    .ToList();
 
-                if (deadline != null)
+                if (!taskSubtasks.Any())
+                    continue;
+
+                // Sprawdzenie deadline całego zadania
+                var latestDate = schedule
+                    .Where(e => taskSubtasks.Any(st => st.Id == e.Subtask.Id))
+                    .Select(e => e.Date.Date)
+                    .DefaultIfEmpty(DateTime.MinValue)
+                    .Max();
+
+                if (task.Deadline != null && latestDate > task.Deadline.Value.Date)
                 {
-                    var latest = schedule
-                        .Where(s => s.Subtask != null && subtaskIds.Contains(s.Subtask.Id))
-                        .OrderByDescending(s => s.Date)
-                        .FirstOrDefault();
-
-                    if (latest != null && latest.Date > deadline.Value)
-                        missedDeadlines++;
-                }
-            }
-            deadlineScore = 1.0 - (missedDeadlines / (double)(groupedByTask.Count == 0 ? 1 : groupedByTask.Count));
-
-            // 5. orderScore: zachowana kolejność subtasks (wg ID)
-            int orderViolations = 0;
-            foreach (var kvp in groupedByTask)
-            {
-                var orderedSubtasks = kvp.Value.OrderBy(s => s.Id).ToList();
-                var subtaskDates = new Dictionary<int, DateTime>();
-
-                foreach (var subtask in orderedSubtasks)
-                {
-                    var entries = schedule.Where(s => s.Subtask?.Id == subtask.Id).ToList();
-                    if (entries.Any())
-                        subtaskDates[subtask.Id] = entries.Min(e => e.Date);
+                    var daysLate = (latestDate - task.Deadline.Value.Date).TotalDays;
+                    score -= 15 * daysLate;
                 }
 
-                for (int i = 1; i < orderedSubtasks.Count; i++)
+                // Sprawdzenie kolejności podzadań
+                for (int i = 0; i < taskSubtasks.Count - 1; i++)
                 {
-                    var prev = orderedSubtasks[i - 1];
-                    var next = orderedSubtasks[i];
+                    var first = taskSubtasks[i];
+                    var second = taskSubtasks[i + 1];
 
-                    if (subtaskDates.TryGetValue(prev.Id, out var datePrev) &&
-                        subtaskDates.TryGetValue(next.Id, out var dateNext) &&
-                        datePrev > dateNext)
+                    var firstMaxDate = schedule
+                        .Where(e => e.Subtask.Id == first.Id)
+                        .Select(e => e.Date.Date)
+                        .DefaultIfEmpty(DateTime.MinValue)
+                        .Max();
+
+                    var secondMinDate = schedule
+                        .Where(e => e.Subtask.Id == second.Id)
+                        .Select(e => e.Date.Date)
+                        .DefaultIfEmpty(DateTime.MaxValue)
+                        .Min();
+
+                    if (firstMaxDate > secondMinDate)
                     {
-                        orderViolations++;
+                        // złamana kolejność
+                        score -= 50;
                     }
                 }
             }
-            orderScore = 1.0 - (orderViolations / (double)(subtasks.Count == 0 ? 1 : subtasks.Count));
 
-            // 6. balanceScore: równe rozłożenie godzin
-            if (groupedByDate.Count > 1)
+            // Ocena przypisań subtasków
+            foreach (var subtask in subtasks)
             {
-                var avg = groupedByDate.Values.Average();
-                var variance = groupedByDate.Values.Select(val => Math.Pow(val - avg, 2)).Average();
-                balanceScore = 1.0 / (1.0 + variance); // im mniejsza wariancja, tym lepszy wynik
+                var assignedTime = schedule
+                    .Where(e => e.Subtask.Id == subtask.Id)
+                    .Sum(e => e.Hours);
+
+                if (assignedTime < subtask.EstimatedTime)
+                {
+                    score -= 40 * (subtask.EstimatedTime - assignedTime);
+                }
+                else if (assignedTime > subtask.EstimatedTime)
+                {
+                    score -= 60 * (assignedTime - subtask.EstimatedTime);
+                }
+                else
+                {
+                    var parentTask = tasks.FirstOrDefault(t => t.EncodedName == subtask.TaskEncodedName);
+                    var priority = parentTask?.Priority ?? TaskPriority.Ważne;
+                    score += 20 * (int)priority;
+                }
+
+                foreach (var entry in schedule.Where(e => e.Subtask.Id == subtask.Id))
+                {
+                    var date = entry.Date.Date;
+                    if (!availabilityByDate.TryGetValue(date, out var availableHours))
+                    {
+                        score -= 50;
+                        continue;
+                    }
+
+                    var totalAssignedForThisDay = scheduleByDate[date].Sum(e => e.Hours);
+                    if (totalAssignedForThisDay > availableHours)
+                    {
+                        score -= 30 * (totalAssignedForThisDay - availableHours);
+                    }
+
+                    if (entry.Hours > availableHours)
+                    {
+                        score -= 25;
+                    }
+                }
             }
 
-            // Końcowy score
-            var score = 0.15 * timeFitScore
-              + 0.15 * deadlineScore
-              + 0.15 * coverageScore
-              + 0.2 * allocationScore
-              + 0.15 * underallocationPenalty
-              + 0.1 * orderScore
-              + 0.1 * balanceScore;
-
-            return Math.Round(score, 6);
+            return score;
         }
+
+
     }
+
 
 
 

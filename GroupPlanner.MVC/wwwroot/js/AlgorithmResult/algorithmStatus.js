@@ -38,7 +38,17 @@
                     body: new URLSearchParams(data)
                 });
 
+                if (!response.ok) {
+                    // jeśli np. 500
+                    const errorText = await response.text();
+                    console.error("Błąd serwera:", errorText);
+                    alert("Serwer zwrócił błąd:\n\n" + errorText);
+                    loadingSection.style.display = "none";
+                    return;
+                }
+
                 const result = await response.json();
+
                 if (result.success) {
                     progressBar.classList.remove("bg-info");
                     progressBar.classList.add("bg-success");
@@ -46,36 +56,20 @@
                     progressBar.innerText = "100%";
                     statusText.innerText = "Algorytm zakończony.";
 
-                    // ✅ Pauza 3 sekundy przed przekierowaniem
                     const resultId = result.resultId;
                     setTimeout(() => {
                         window.location.href = `/AlgorithmResult/Details/${resultId}`;
-                    }, 3000);
-                }
-
-                if (result.success) {
-                    progressBar.classList.remove("bg-info");
-                    progressBar.classList.add("bg-success");
-                    progressBar.style.width = "100%";
-                    progressBar.innerText = "100%";
-                    statusText.innerText = "Algorytm zakończony.";
-
-                    // krótka pauza zanim przekierujemy
-                    setTimeout(() => {
-                        window.location.href = `/AlgorithmResult/Details/${result.resultId}`;
-                    }, 1000); // 1 sekunda
+                    }, 1000);
                 } else {
-                    alert("Nie udało się uruchomić algorytmu.");
+                    alert("Nie udało się uruchomić algorytmu (serwer zwrócił success=false).");
+                    loadingSection.style.display = "none";
                 }
 
             } catch (error) {
-                console.error(error);
-                alert("Wystąpił błąd podczas uruchamiania algorytmu.");
+                console.error("Błąd JS:", error);
+                alert("Wystąpił błąd po stronie JavaScript:\n" + error.message);
+                loadingSection.style.display = "none";
             }
         });
     }
-   
-
-
-
 });

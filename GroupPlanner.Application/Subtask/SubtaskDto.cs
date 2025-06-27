@@ -15,5 +15,6 @@ namespace GroupPlanner.Application.Subtask
         public double EstimatedTime { get; set; } = 1.0;
         public string? TaskEncodedName { get; set; }
         public DateTime? TaskDeadline { get; set; }
+        public int Order { get; set; }
     }
 }
