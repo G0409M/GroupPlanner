@@ -1,549 +1,432 @@
-﻿using GroupPlanner.Application.DailyAvailability;
+﻿using GroupPlanner.Application.Task;
 using GroupPlanner.Application.Subtask;
-using Microsoft.AspNetCore.SignalR;
-using GroupPlanner.Application.Hubs;
+using GroupPlanner.Application.DailyAvailability;
+using GroupPlanner.Application.Algorithms.Genetic;
+using System.Text.Json;
 using GroupPlanner.Application.AlgorithmResult;
-using GroupPlanner.Application.Task;
-using Newtonsoft.Json;
 
 namespace GroupPlanner.Application.Algorithms.Genetic
 {
     public class GeneticAlgorithmService : IGeneticAlgorithmService
     {
-        private readonly Random _random = new();
-        private readonly IHubContext<AlgorithmHub> _hubContext;
+        private readonly Random random = new Random();
 
-        public GeneticAlgorithmService(IHubContext<AlgorithmHub> hubContext)
+        public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availability,
+                        GeneticAlgorithmParameters parameters,Func<int, double, System.Threading.Tasks.Task> progressCallback)
         {
-            _hubContext = hubContext;
-        }
+            var random = new Random();
 
-        public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities, GeneticAlgorithmParameters parameters,
-    Func<int, double, System.Threading.Tasks.Task>? reportProgress = null)
-        {
-            // 1️⃣ Generowanie początkowej populacji
-            var population = GenerateInitialPopulation(subtasks, availabilities, parameters);
+            int populationSize = parameters.PopulationSize;
+            int generations = parameters.Generations;
+            double crossoverProb = parameters.CrossoverProbability;
+            double mutationProb = parameters.MutationProbability;
+            int tournamentSize = parameters.TournamentSize;
+
+            // inicjalna populacja
+            var population = GenerateInitialPopulation(populationSize, subtasks, availability, tasks);
+
+            double bestScore = double.MinValue;
+            List<ScheduleEntryDto> bestSchedule = null;
 
             var scoreHistory = new List<double>();
 
-            for (int generation = 0; generation < parameters.Generations; generation++)
+            for (int generation = 0; generation < generations; generation++)
             {
-                // 2️⃣ Ocena populacji
                 var evaluated = population
-                    .Select(p => new EvaluatedScheduleDto
+                    .Select(p => new EvaluatedSchedule
                     {
                         Schedule = p,
-                        Score = ScheduleEvaluator.Evaluate(p, subtasks, tasks, availabilities)
+                        Score = ScheduleEvaluator.Evaluate(p, subtasks, tasks, availability)
                     })
                     .OrderByDescending(x => x.Score)
                     .ToList();
 
-                var bestScore = evaluated.First().Score;
-                scoreHistory.Add(bestScore);
+                var bestInGen = evaluated.First();
 
-                // 3️⃣ Raportowanie do klienta (SignalR, konsola itd.)
-                if (reportProgress != null)
-                    await reportProgress(generation, bestScore);
-
-                // 4️⃣ Elitaryzm: zachowaj najlepszego
-                var newPopulation = new List<List<ScheduleEntryDto>>
+                if (bestInGen.Score > bestScore)
                 {
-                    CloneSchedule(evaluated.First().Schedule)
-                };
+                    bestScore = bestInGen.Score;
+                    bestSchedule = bestInGen.Schedule.Select(CloneScheduleEntry).ToList();
+                }
 
-                // 5️⃣ Krzyżowanie i mutacje
-                while (newPopulation.Count < parameters.PopulationSize)
+                scoreHistory.Add(bestInGen.Score);
+
+                if (progressCallback != null)
                 {
-                    // selekcja turniejowa
-                    var parent1 = TournamentSelection(evaluated, parameters.TournamentSize);
-                    var parent2 = TournamentSelection(evaluated, parameters.TournamentSize);
+                    await progressCallback(generation + 1, bestInGen.Score);
+                }
 
-                    // krzyżowanie
-                    var child = _random.NextDouble() < parameters.CrossoverProbability
-                        ? Crossover(parent1, parent2, availabilities)
-                        : CloneSchedule(parent1);
+                var newPopulation = new List<List<ScheduleEntryDto>>();
 
-                    // mutacja
-                    if (_random.NextDouble() < parameters.MutationProbability)
-                    {
-                        Mutate(child, availabilities);
-                    }
+                while (newPopulation.Count < populationSize - 1)
+                {
+                    var parent1 = TournamentSelection(evaluated, tournamentSize, random);
+                    var parent2 = TournamentSelection(evaluated, tournamentSize, random);
+
+                    List<ScheduleEntryDto> child;
+
+                    if (random.NextDouble() < crossoverProb)
+                        child = Crossover(parent1, parent2, subtasks, availability, tasks, random);
+                    else
+                        child = parent1.Select(CloneScheduleEntry).ToList();
+
+                    if (random.NextDouble() < mutationProb)
+                        Mutate(child, subtasks, availability, random);
 
                     newPopulation.Add(child);
                 }
 
+                // elitaryzm
+                newPopulation.Add(bestInGen.Schedule.Select(CloneScheduleEntry).ToList());
+
                 population = newPopulation;
             }
 
-            // 6️⃣ Ewaluacja populacji końcowej
-            var finalEvaluated = population
-                .Select(p => new EvaluatedScheduleDto
+            if (bestSchedule != null)
+            {
+                var availableHoursPerDay = availability.ToDictionary(a => a.Date, a => a.AvailableHours);
+
+                foreach (var entry in bestSchedule.Where(x => x.Subtask != null))
                 {
-                    Schedule = p,
-                    Score = ScheduleEvaluator.Evaluate(p, subtasks, tasks, availabilities)
-                })
-                .OrderByDescending(x => x.Score)
-                .ToList();
+                    if (availableHoursPerDay.ContainsKey(entry.Date))
+                    {
+                        availableHoursPerDay[entry.Date] -= entry.Hours;
+                        if (availableHoursPerDay[entry.Date] < 0)
+                        {
+                            // log lub rzucenie wyjątku
+                            Console.WriteLine($"[WARN] Day {entry.Date} overbooked below zero hours.");
+                        }
+                    }
+                }
+            }
 
             return new AlgorithmRunResultDto
             {
-                Schedule = finalEvaluated.First().Schedule,
-                BestScore = finalEvaluated.First().Score,
-                ParametersJson = JsonConvert.SerializeObject(parameters),
-                ScoreHistoryJson = JsonConvert.SerializeObject(scoreHistory)
+                BestScore = bestScore,
+                Schedule = bestSchedule
+                    .Where(x => x.Subtask != null)
+                    .ToList(),
+                ScoreHistoryJson = JsonSerializer.Serialize(scoreHistory),
+                ParametersJson = JsonSerializer.Serialize(parameters)
             };
         }
 
 
-        private List<List<ScheduleEntryDto>> GenerateInitialPopulation(List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities,GeneticAlgorithmParameters parameters)
+        private List<List<ScheduleEntryDto>> GenerateInitialPopulation(int size, List<SubtaskDto> subtasks, List<DailyAvailabilityDto> availability, List<TaskDto> tasks)
         {
-            var population = new List<List<ScheduleEntryDto>>();
-            var rand = new Random();
+            var pop = new List<List<ScheduleEntryDto>>();
+            for (int i = 0; i < size; i++)
+                pop.Add(GenerateRandomSchedule(subtasks, availability, tasks));
+            return pop;
+        }
 
-            var availabilityByDate = availabilities
-            .GroupBy(a => a.Date.Date)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Sum(x => x.AvailableHours)
-            );
+        private List<ScheduleEntryDto> GenerateRandomSchedule(List<SubtaskDto> subtasks, List<DailyAvailabilityDto> availability, List<TaskDto> tasks)
+        {
+            var schedule = new List<ScheduleEntryDto>();
 
-
-            // podziel subtaski według taskId i Order
-            var subtasksByTask = subtasks
-                .GroupBy(s => s.TaskEncodedName)
+            var availableDays = availability
+                .Select(a => new AvailableDay
+                {
+                    Date = a.Date,
+                    HoursLeft = a.AvailableHours
+                })
+                .OrderBy(a => a.Date)
                 .ToList();
 
-            for (int i = 0; i < parameters.PopulationSize; i++)
+            var taskMap = tasks
+                .Where(t => t.EncodedName != null)
+                .ToDictionary(t => t.EncodedName!);
+
+            var shuffledSubtasks = subtasks.OrderBy(_ => random.Next()).ToList();
+
+            foreach (var subtask in shuffledSubtasks)
             {
-                var schedule = new List<ScheduleEntryDto>();
+                if (subtask.TaskEncodedName == null)
+                    continue; // zabezpieczenie
 
-                foreach (var taskGroup in subtasksByTask)
+                var task = taskMap.GetValueOrDefault(subtask.TaskEncodedName);
+                var deadline = task?.Deadline ?? DateTime.MaxValue;
+                int remaining = subtask.EstimatedTime;
+
+                while (remaining > 0)
                 {
-                    var orderedSubtasks = taskGroup.OrderBy(s => s.Order).ToList();
+                    var candidateDays = availableDays
+                        .Where(d => d.Date <= deadline && d.HoursLeft > 0)
+                        .OrderByDescending(d => d.HoursLeft)
+                        .ToList();
 
-                    foreach (var subtask in orderedSubtasks)
+                    if (!candidateDays.Any())
+                        break;
+
+                    var day = candidateDays.First();
+                    int allocatable = Math.Min(remaining, day.HoursLeft);
+                    int assigned = random.Next(1, allocatable + 1);
+
+                    schedule.Add(new ScheduleEntryDto
                     {
-                        double remainingTime = subtask.EstimatedTime;
+                        Date = day.Date,
+                        Hours = assigned,
+                        Subtask = subtask
+                    });
 
-                        var eligibleDates = availabilities
-                            .Where(a =>
-                                a.Date.Date <= (subtask.TaskDeadline ?? DateTime.MaxValue.Date) &&
-                                a.AvailableHours >= 1.0
-                            )
-                            .Select(a => a.Date.Date)
-                            .OrderBy(d => d) // aby trzymać kolejność
-                            .ToList();
+                    day.HoursLeft -= assigned;
+                    remaining -= assigned;
+                }
 
-                        while (remainingTime >= 1.0 && eligibleDates.Any())
+                if (remaining > 0)
+                {
+                    var fallbackDays = availableDays.OrderBy(_ => random.Next()).ToList();
+                    foreach (var day in fallbackDays)
+                    {
+                        if (remaining <= 0) break;
+
+                        int assigned = Math.Min(remaining, 4);
+                        schedule.Add(new ScheduleEntryDto
                         {
-                            var chosenDate = eligibleDates[rand.Next(eligibleDates.Count)];
-                            var availableHoursOnDate = availabilityByDate[chosenDate];
-                            double alreadyAssigned = schedule
-                                .Where(e => e.Date.Date == chosenDate)
-                                .Sum(e => e.Hours);
+                            Date = day.Date,
+                            Hours = assigned,
+                            Subtask = subtask
+                        });
+                        remaining -= assigned;
+                    }
 
-                            double remainingAvailable = availableHoursOnDate - alreadyAssigned;
-                            if (remainingAvailable < 1.0)
-                            {
-                                eligibleDates.Remove(chosenDate);
-                                continue;
-                            }
-
-                            double maxChunk = Math.Min(remainingTime, remainingAvailable);
-                            var possibleChunks = new List<double>();
-                            for (double c = 1.0; c <= maxChunk; c += 0.5)
-                                possibleChunks.Add(c);
-
-                            var chosenChunk = possibleChunks[rand.Next(possibleChunks.Count)];
-
-                            schedule.Add(new ScheduleEntryDto
-                            {
-                                Date = chosenDate,
-                                Subtask = subtask,
-                                Hours = chosenChunk
-                            });
-
-                            remainingTime -= chosenChunk;
-                        }
-
-                        if (remainingTime > 0 && eligibleDates.Any())
-                        {
-                            var chosenDate = eligibleDates[rand.Next(eligibleDates.Count)];
-                            var availableHoursOnDate = availabilityByDate[chosenDate];
-                            double alreadyAssigned = schedule
-                                .Where(e => e.Date.Date == chosenDate)
-                                .Sum(e => e.Hours);
-
-                            double remainingAvailable = availableHoursOnDate - alreadyAssigned;
-                            if (remainingAvailable >= remainingTime)
-                            {
-                                schedule.Add(new ScheduleEntryDto
-                                {
-                                    Date = chosenDate,
-                                    Subtask = subtask,
-                                    Hours = remainingTime
-                                });
-                                remainingTime = 0;
-                            }
-                        }
+                    if (remaining > 0)
+                    {
+                        Console.WriteLine($"[WARN] Could not assign {remaining}h for subtask {subtask.Description}");
                     }
                 }
-                population.Add(schedule);
             }
 
-            return population;
+            return schedule
+                .OrderBy(s => s.Date)
+                .ThenBy(s => s.Subtask?.TaskEncodedName ?? "")
+                .ThenBy(s => s.Subtask?.Order ?? int.MaxValue)
+                .ToList();
         }
 
 
-        private List<double> SplitIntoRandomChunks(double totalTime)
+        private List<ScheduleEntryDto> TournamentSelection(List<EvaluatedSchedule> evaluated,int tournamentSize,Random random)
         {
-            var chunks = new List<double>();
-            var rand = new Random();
+            var candidates = evaluated.OrderByDescending(_ => random.Next()).Take(tournamentSize).ToList();
 
-            double remaining = totalTime;
+            return candidates.OrderByDescending(x => x.Score).First().Schedule;
+        }
 
-            while (remaining >= 1.0)
+        private List<ScheduleEntryDto> Crossover(List<ScheduleEntryDto> parent1,List<ScheduleEntryDto> parent2,List<SubtaskDto> subtasks,
+                List<DailyAvailabilityDto> availability,List<TaskDto> tasks,Random random)
+        {
+            var offspring = new List<ScheduleEntryDto>();
+
+            var availableDays = availability
+                .Select(a => new AvailableDay
+                {
+                    Date = a.Date,
+                    HoursLeft = a.AvailableHours
+                })
+                .OrderBy(a => a.Date)
+                .ToList();
+
+            var taskMap = tasks
+                .Where(t => t.EncodedName != null)
+                .ToDictionary(t => t.EncodedName!);
+
+            var groups1 = parent1
+                .Where(e => e.Subtask != null)
+                .GroupBy(e => e.Subtask)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var groups2 = parent2
+                .Where(e => e.Subtask != null)
+                .GroupBy(e => e.Subtask)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var shuffledSubtasks = subtasks.OrderBy(_ => random.Next()).ToList();
+
+            foreach (var subtask in shuffledSubtasks)
             {
-                double upperLimit = Math.Floor(remaining / 0.5) * 0.5;
+                if (subtask.TaskEncodedName == null)
+                    continue;
 
-                var possibleChunks = new List<double>();
-                for (double c = 1.0; c <= upperLimit; c += 0.5)
+                var task = taskMap.GetValueOrDefault(subtask.TaskEncodedName);
+                var deadline = task?.Deadline ?? DateTime.MaxValue;
+                int remaining = subtask.EstimatedTime;
+
+                List<ScheduleEntryDto>? sourceEntries = null;
+
+                if (groups1.ContainsKey(subtask) && groups2.ContainsKey(subtask))
+                    sourceEntries = random.Next(2) == 0 ? groups1[subtask] : groups2[subtask];
+                else if (groups1.ContainsKey(subtask))
+                    sourceEntries = groups1[subtask];
+                else if (groups2.ContainsKey(subtask))
+                    sourceEntries = groups2[subtask];
+
+                if (sourceEntries != null)
                 {
-                    possibleChunks.Add(c);
+                    foreach (var entry in sourceEntries.OrderBy(_ => random.Next()))
+                    {
+                        if (entry.Date > deadline)
+                            continue;
+
+                        var day = availableDays.FirstOrDefault(d => d.Date == entry.Date);
+                        if (day != null && day.HoursLeft >= entry.Hours)
+                        {
+                            offspring.Add(new ScheduleEntryDto
+                            {
+                                Date = entry.Date,
+                                Hours = entry.Hours,
+                                Subtask = subtask
+                            });
+                            day.HoursLeft -= entry.Hours;
+                            remaining -= entry.Hours;
+                            if (remaining <= 0)
+                                break;
+                        }
+                    }
                 }
 
-                if (possibleChunks.Count == 0)
+                // fallback
+                while (remaining > 0)
                 {
-                    break;
+                    var candidateDays = availableDays
+                        .Where(d => d.Date <= deadline && d.HoursLeft > 0)
+                        .OrderByDescending(d => d.HoursLeft)
+                        .ToList();
+
+                    if (!candidateDays.Any())
+                        break;
+
+                    var day = candidateDays.First();
+                    int allocatable = Math.Min(remaining, day.HoursLeft);
+                    int assigned = random.Next(1, allocatable + 1);
+
+                    offspring.Add(new ScheduleEntryDto
+                    {
+                        Date = day.Date,
+                        Hours = assigned,
+                        Subtask = subtask
+                    });
+                    day.HoursLeft -= assigned;
+                    remaining -= assigned;
                 }
 
-                var chosen = possibleChunks[rand.Next(possibleChunks.Count)];
-                chunks.Add(chosen);
-                remaining -= chosen;
+                if (remaining > 0)
+                {
+                    var fallbackDays = availableDays.OrderBy(_ => random.Next()).ToList();
+                    foreach (var day in fallbackDays)
+                    {
+                        if (remaining <= 0) break;
+                        int assigned = Math.Min(remaining, 4);
+                        offspring.Add(new ScheduleEntryDto
+                        {
+                            Date = day.Date,
+                            Hours = assigned,
+                            Subtask = subtask
+                        });
+                        remaining -= assigned;
+                    }
+
+                    if (remaining > 0)
+                    {
+                        Console.WriteLine($"[WARN] Crossover: could not assign {remaining}h for subtask {subtask.Description}");
+                    }
+                }
             }
 
-            if (remaining > 0.0)
+            return offspring
+                .OrderBy(s => s.Date)
+                .ThenBy(s => s.Subtask?.TaskEncodedName ?? "")
+                .ThenBy(s => s.Subtask?.Order ?? int.MaxValue)
+                .ToList();
+        }
+
+
+        private void Mutate(List<ScheduleEntryDto> schedule,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availability,Random random)
+        {
+            // stworzenie słownika pozostałych godzin
+            var dayHoursLeft = availability
+                .ToDictionary(a => a.Date, a => a.AvailableHours);
+
+            // odejmij godziny już zajęte w harmonogramie
+            foreach (var s in schedule.Where(x => x.Subtask != null))
             {
-                if (chunks.Count > 0)
+                dayHoursLeft[s.Date] -= s.Hours;
+            }
+
+            var taskSubentries = schedule.Where(x => x.Subtask != null).ToList();
+            int mutationCount = Math.Max(1, (int)Math.Ceiling(taskSubentries.Count * 0.05));
+
+            for (int i = 0; i < mutationCount; i++)
+            {
+                var entry = taskSubentries[random.Next(taskSubentries.Count)];
+
+                // oddaj godziny z powrotem
+                dayHoursLeft[entry.Date] += entry.Hours;
+                schedule.Remove(entry);
+
+                // próbujemy znaleźć nowy dzień
+                var candidateDays = dayHoursLeft
+                    .Where(kv => kv.Value > 0)
+                    .Select(kv => kv.Key)
+                    .ToList();
+
+                if (candidateDays.Any())
                 {
-                    chunks[chunks.Count - 1] += remaining;
+                    var newDay = candidateDays[random.Next(candidateDays.Count)];
+                    int available = dayHoursLeft[newDay];
+                    int hoursToAssign = Math.Min(available, entry.Hours);
+
+                    schedule.Add(new ScheduleEntryDto
+                    {
+                        Date = newDay,
+                        Hours = hoursToAssign,
+                        Subtask = entry.Subtask
+                    });
+
+                    dayHoursLeft[newDay] -= hoursToAssign;
+
+                    // jeżeli jeszcze zostało
+                    int leftover = entry.Hours - hoursToAssign;
+                    if (leftover > 0)
+                    {
+                        schedule.Add(new ScheduleEntryDto
+                        {
+                            Date = entry.Date,
+                            Hours = leftover,
+                            Subtask = entry.Subtask
+                        });
+                        dayHoursLeft[entry.Date] -= leftover;
+                    }
                 }
                 else
                 {
-                    // nie było chunków - przypisz wszystko naraz
-                    chunks.Add(remaining);
+                    // nie udało się — przywróć tak jak było
+                    schedule.Add(entry);
+                    dayHoursLeft[entry.Date] -= entry.Hours;
                 }
             }
-
-            return chunks;
         }
 
 
-        private List<ScheduleEntryDto> TournamentSelection(List<EvaluatedScheduleDto> evaluated, int k)
-        {
-            var rand = new Random();
-
-            // turniej nie może być większy niż populacja
-            k = Math.Min(k, evaluated.Count);
-
-            // losowo wybierz k osobników (bez powtórzeń)
-            var tournamentContestants = evaluated
-                .OrderBy(x => rand.Next())
-                .Take(k)
-                .ToList();
-
-            // znajdź najlepszego
-            var bestScore = tournamentContestants.Max(e => e.Score);
-            var best = tournamentContestants
-                .Where(e => e.Score == bestScore)
-                .OrderBy(x => rand.Next()) // jeśli kilku z tym samym score, losowo
-                .First();
-
-            // zwracamy kopię Schedule, żeby nie nadpisać oryginału w ewolucji
-            return best.Schedule
-                .Select(e => new ScheduleEntryDto
-                {
-                    Date = e.Date,
-                    Subtask = e.Subtask,
-                    Hours = e.Hours
-                })
-                .ToList();
-        }
-
-
-        private List<ScheduleEntryDto> Crossover(
-    List<ScheduleEntryDto> parentA,
-    List<ScheduleEntryDto> parentB,
-    List<DailyAvailabilityDto> availabilities)
-        {
-            var rand = new Random();
-            var child = new List<ScheduleEntryDto>();
-
-            // łączona dostępność (sumowana dla dni)
-            var availabilityMap = availabilities
-                .GroupBy(a => a.Date.Date)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.Sum(x => x.AvailableHours)
-                );
-
-            var usedHoursPerDay = new Dictionary<DateTime, double>();
-
-            var taskNames = parentA
-                .Select(e => e.Subtask.TaskEncodedName)
-                .Union(parentB.Select(e => e.Subtask.TaskEncodedName))
-                .Distinct()
-                .ToList();
-
-            // 1️⃣ przydziel zadania od rodziców
-            foreach (var taskName in taskNames)
-            {
-                bool fromA = rand.NextDouble() < 0.5;
-                var chosenParent = fromA ? parentA : parentB;
-
-                var taskEntries = chosenParent
-                    .Where(e => e.Subtask.TaskEncodedName == taskName)
-                    .ToList();
-
-                foreach (var entry in taskEntries)
-                {
-                    var proposedDate = entry.Date.Date;
-
-                    if (!usedHoursPerDay.ContainsKey(proposedDate))
-                        usedHoursPerDay[proposedDate] = 0;
-
-                    // sprawdź czy da się wcisnąć całość
-                    while (usedHoursPerDay[proposedDate] + entry.Hours > availabilityMap.GetValueOrDefault(proposedDate, 0) ||
-                           entry.Hours < 1.0)
-                    {
-                        // szukaj kolejnego dnia
-                        proposedDate = proposedDate.AddDays(1);
-
-                        if (!availabilityMap.ContainsKey(proposedDate))
-                        {
-                            break;
-                        }
-                        if (!usedHoursPerDay.ContainsKey(proposedDate))
-                            usedHoursPerDay[proposedDate] = 0;
-                    }
-
-                    if (availabilityMap.ContainsKey(proposedDate) &&
-                        usedHoursPerDay[proposedDate] + entry.Hours <= availabilityMap[proposedDate] &&
-                        entry.Hours >= 1.0)
-                    {
-                        child.Add(new ScheduleEntryDto
-                        {
-                            Date = proposedDate,
-                            Subtask = entry.Subtask,
-                            Hours = entry.Hours
-                        });
-                        usedHoursPerDay[proposedDate] += entry.Hours;
-                    }
-                }
-            }
-
-            // 2️⃣ pozostałe zadania (nieprzydzielone)
-            var alreadyPlanned = child.Select(e => e.Subtask.Id).Distinct().ToHashSet();
-
-            var allSubtasks = parentA
-                .Concat(parentB)
-                .Select(e => e.Subtask)
-                .DistinctBy(s => s.Id)
-                .Where(s => !alreadyPlanned.Contains(s.Id))
-                .ToList();
-
-            foreach (var subtask in allSubtasks)
-            {
-                double timeLeft = subtask.EstimatedTime;
-
-                foreach (var day in availabilities.OrderBy(a => a.Date))
-                {
-                    if (timeLeft <= 0) break;
-
-                    var date = day.Date.Date;
-
-                    if (!usedHoursPerDay.ContainsKey(date))
-                        usedHoursPerDay[date] = 0;
-
-                    double freeHours = availabilityMap[date] - usedHoursPerDay[date];
-
-                    // ignoruj dni gdzie wolne < 1h
-                    if (freeHours < 1.0) continue;
-
-                    var hoursToAssign = Math.Min(freeHours, timeLeft);
-
-                    // nie dziel mniejszych niż 1h
-                    if (hoursToAssign < 1.0)
-                        continue;
-
-                    child.Add(new ScheduleEntryDto
-                    {
-                        Date = date,
-                        Subtask = subtask,
-                        Hours = hoursToAssign
-                    });
-
-                    usedHoursPerDay[date] += hoursToAssign;
-                    timeLeft -= hoursToAssign;
-                }
-
-                // jeżeli zostało np. 0.5h na końcu → dołącz do poprzedniego
-                if (timeLeft > 0 && timeLeft < 1.0)
-                {
-                    var lastEntry = child.LastOrDefault(e => e.Subtask.Id == subtask.Id);
-                    if (lastEntry != null)
-                    {
-                        lastEntry.Hours += timeLeft;
-                        usedHoursPerDay[lastEntry.Date] += timeLeft;
-                        timeLeft = 0;
-                    }
-                }
-            }
-
-            // sortowanie
-            return child
-                .OrderBy(e => e.Subtask.TaskEncodedName)
-                .ThenBy(e => e.Subtask.Order)
-                .ThenBy(e => e.Date)
-                .ToList();
-        }
-
-
-
-
-
-        private List<ScheduleEntryDto> CloneSchedule(List<ScheduleEntryDto> schedule)
-        {
-            return schedule.Select(CloneEntry).ToList();
-        }
-
-        private ScheduleEntryDto CloneEntry(ScheduleEntryDto entry)
+        private ScheduleEntryDto CloneScheduleEntry(ScheduleEntryDto entry)
         {
             return new ScheduleEntryDto
             {
                 Date = entry.Date,
-                Subtask = entry.Subtask,
-                Hours = entry.Hours
+                Hours = entry.Hours,
+                Subtask = entry.Subtask // lub clone SubtaskDto jeśli potrzebne
             };
         }
 
-        private void Mutate(List<ScheduleEntryDto> schedule, List<DailyAvailabilityDto> availabilities)
+        private class EvaluatedSchedule
         {
-            var rand = new Random();
-
-            if (!schedule.Any())
-                return;
-
-            var subtaskIds = schedule.Select(e => e.Subtask.Id).Distinct().ToList();
-            var selectedSubtaskId = subtaskIds[rand.Next(subtaskIds.Count)];
-
-            var selectedSubtaskEntries = schedule
-                .Where(e => e.Subtask.Id == selectedSubtaskId)
-                .ToList();
-
-            if (!selectedSubtaskEntries.Any())
-                return;
-
-            var subtask = selectedSubtaskEntries.First().Subtask;
-            var estimatedTime = subtask.EstimatedTime;
-
-            schedule.RemoveAll(e => e.Subtask.Id == selectedSubtaskId);
-
-            var availableDates = availabilities
-                .Where(a =>
-                    a.Date.Date <= (subtask.TaskDeadline ?? DateTime.MaxValue.Date) &&
-                    a.AvailableHours >= 1.0
-                )
-                .Select(a => a.Date.Date)
-                .OrderBy(d => d)
-                .ToList();
-
-            if (!availableDates.Any())
-                return;
-
-            // kolejność — uwzględnij tylko, jeśli to nie jest pierwszy subtask
-            DateTime? earliestAllowedDate = null;
-            if (subtask.Order > 1)
-            {
-                var previousSubtaskOrder = subtask.Order - 1;
-
-                var previousSubtaskEntries = schedule
-                    .Where(e => e.Subtask.TaskEncodedName == subtask.TaskEncodedName &&
-                                e.Subtask.Order == previousSubtaskOrder)
-                    .ToList();
-
-                if (previousSubtaskEntries.Any())
-                {
-                    earliestAllowedDate = previousSubtaskEntries.Max(e => e.Date);
-                }
-            }
-
-            if (earliestAllowedDate != null)
-            {
-                availableDates = availableDates
-                    .Where(d => d >= earliestAllowedDate.Value.Date)
-                    .ToList();
-            }
-
-            // przypisanie na nowo
-            double remaining = estimatedTime;
-
-            while (remaining >= 1.0 && availableDates.Any())
-            {
-                var chosenDate = availableDates[rand.Next(availableDates.Count)];
-                var availableHours = availabilities.First(a => a.Date.Date == chosenDate).AvailableHours;
-
-                double alreadyAssigned = schedule
-                    .Where(e => e.Date.Date == chosenDate)
-                    .Sum(e => e.Hours);
-
-                double remainingAvailable = availableHours - alreadyAssigned;
-                if (remainingAvailable < 1.0)
-                {
-                    availableDates.Remove(chosenDate);
-                    continue;
-                }
-
-                double maxChunk = Math.Min(remaining, remainingAvailable);
-                var possibleChunks = new List<double>();
-                for (double c = 1.0; c <= maxChunk; c += 0.5)
-                    possibleChunks.Add(c);
-
-                var chosenChunk = possibleChunks[rand.Next(possibleChunks.Count)];
-
-                schedule.Add(new ScheduleEntryDto
-                {
-                    Date = chosenDate,
-                    Subtask = subtask,
-                    Hours = chosenChunk
-                });
-
-                remaining -= chosenChunk;
-            }
-
-            // jeśli zostało jeszcze coś < 1h
-            if (remaining > 0 && availableDates.Any())
-            {
-                var chosenDate = availableDates[rand.Next(availableDates.Count)];
-                var availableHours = availabilities.First(a => a.Date.Date == chosenDate).AvailableHours;
-
-                double alreadyAssigned = schedule
-                    .Where(e => e.Date.Date == chosenDate)
-                    .Sum(e => e.Hours);
-
-                double remainingAvailable = availableHours - alreadyAssigned;
-                if (remainingAvailable >= remaining)
-                {
-                    schedule.Add(new ScheduleEntryDto
-                    {
-                        Date = chosenDate,
-                        Subtask = subtask,
-                        Hours = remaining
-                    });
-                }
-            }
+            public List<ScheduleEntryDto> Schedule { get; set; }
+            public double Score { get; set; }
         }
+    }
 
-
+    class AvailableDay
+    {
+        public DateTime Date { get; set; }
+        public int HoursLeft { get; set; }
     }
 }

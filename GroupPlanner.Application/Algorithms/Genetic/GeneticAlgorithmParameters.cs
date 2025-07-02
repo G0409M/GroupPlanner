@@ -13,5 +13,6 @@ namespace GroupPlanner.Application.Algorithms.Genetic
         public double CrossoverProbability { get; set; } = 0.7;
         public double MutationProbability { get; set; } = 0.1;
         public int TournamentSize { get; set; } = 3;
+        public int ElitismCount { get; set; } = 1;
     }
 }

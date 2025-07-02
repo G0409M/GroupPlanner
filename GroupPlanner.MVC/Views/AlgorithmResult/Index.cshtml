@@ -21,7 +21,7 @@
             <tr>
                 <td>@result.Algorithm</td>
                 <td>@result.CreatedAt.ToLocalTime().ToString("g")</td>
-                <td>@result.ResultValue.ToString("F2")</td>
+                <td>@result.ResultValue.ToString("F7")</td>
                 <td>@result.Duration</td>
                 <td>
                     <a asp-action="Details" asp-route-id="@result.Id" class="btn btn-primary btn-sm">Szczegóły</a>

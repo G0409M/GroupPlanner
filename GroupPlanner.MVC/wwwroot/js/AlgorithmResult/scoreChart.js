@@ -4,6 +4,18 @@
 
     const scoreData = JSON.parse(scoreHistoryJson);
 
+    const dataMin = Math.min(...scoreData);
+    const dataMax = Math.max(...scoreData);
+
+    const marginPct = 0.05;
+    const range = dataMax - dataMin;
+    const margin = range * marginPct;
+
+    const minY = dataMin - margin;
+    const maxY = dataMax + margin;
+
+    let decimalPlaces = 7;
+
     new Chart(ctx, {
         type: 'line',
         data: {
@@ -25,17 +37,18 @@
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: {
-                        font: {
-                            size: 14
-                        }
-                    }
+                    labels: { font: { size: 14 } }
                 },
                 title: {
                     display: true,
                     text: 'Funkcja celu (Score w kolejnych iteracjach)',
-                    font: {
-                        size: 18
+                    font: { size: 18 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            return `Funkcja celu: ${context.parsed.y.toFixed(decimalPlaces)}`;
+                        }
                     }
                 }
             },
@@ -51,9 +64,7 @@
                         maxTicksLimit: 20,
                         font: { size: 12 }
                     },
-                    grid: {
-                        display: false
-                    }
+                    grid: { display: false }
                 },
                 y: {
                     title: {
@@ -61,13 +72,13 @@
                         text: 'Wartość funkcji celu',
                         font: { size: 14 }
                     },
+                    suggestedMin: minY,
+                    suggestedMax: maxY,
                     ticks: {
-                        callback: value => value.toFixed(3),
+                        callback: value => value.toFixed(decimalPlaces),
                         font: { size: 12 }
                     },
-                    grid: {
-                        color: '#e0e0e0'
-                    }
+                    grid: { color: '#e0e0e0' }
                 }
             }
         }

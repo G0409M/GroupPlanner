@@ -11,7 +11,7 @@ namespace GroupPlanner.Domain.Entities
     {
         public int Id { get; set; }
         public DateTime Date { get; set; }  
-        public double AvailableHours { get; set; }
+        public int AvailableHours { get; set; }
         public string? CreatedById { get; set; }
         public IdentityUser? CreatedBy { get; set; }
     }

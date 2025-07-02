@@ -10,128 +10,116 @@ using System.Threading.Tasks;
 
 namespace GroupPlanner.Application.Algorithms
 {
-    public class EvaluatedScheduleDto
-    {
-        public List<ScheduleEntryDto> Schedule { get; set; } = new();
-        public double Score { get; set; }
-    }
+    
     public static class ScheduleEvaluator
     {
-        public static double Evaluate(
-    List<ScheduleEntryDto> schedule,
-    List<SubtaskDto> subtasks,
-    List<TaskDto> tasks,
-    List<DailyAvailabilityDto> availability)
+        public static double Evaluate(List<ScheduleEntryDto> schedule,List<SubtaskDto> subtasks,List<TaskDto> tasks,List<DailyAvailabilityDto> availability)
         {
-            double score = 0.0;
+            double penalty = 0;
 
-            var availabilityByDate = availability
-            .GroupBy(a => a.Date.Date)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Sum(x => x.AvailableHours)
-            );
+            // grupujemy harmonogram po subtask
+            var groupedBySubtask = schedule
+                .Where(h => h.Subtask != null)
+                .GroupBy(h => h.Subtask)
+                .ToDictionary(g => g.Key, g => g.OrderBy(h => h.Date).ToList());
 
+            var allSubtasks = subtasks;
 
-            var scheduleByDate = schedule
-                .GroupBy(e => e.Date.Date)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
+            // kara za niezakończone zadania lub po terminie
             foreach (var task in tasks)
             {
-                var taskSubtasks = subtasks
-                    .Where(s => s.TaskEncodedName == task.EncodedName)
-                    .OrderBy(s => s.Order)
+                var taskEntries = schedule
+                    .Where(h => h.Subtask != null && h.Subtask.TaskEncodedName == task.EncodedName)
                     .ToList();
 
-                if (!taskSubtasks.Any())
-                    continue;
-
-                // Sprawdzenie deadline całego zadania
-                var latestDate = schedule
-                    .Where(e => taskSubtasks.Any(st => st.Id == e.Subtask.Id))
-                    .Select(e => e.Date.Date)
-                    .DefaultIfEmpty(DateTime.MinValue)
-                    .Max();
-
-                if (task.Deadline != null && latestDate > task.Deadline.Value.Date)
+                if (taskEntries.Any())
                 {
-                    var daysLate = (latestDate - task.Deadline.Value.Date).TotalDays;
-                    score -= 15 * daysLate;
-                }
-
-                // Sprawdzenie kolejności podzadań
-                for (int i = 0; i < taskSubtasks.Count - 1; i++)
-                {
-                    var first = taskSubtasks[i];
-                    var second = taskSubtasks[i + 1];
-
-                    var firstMaxDate = schedule
-                        .Where(e => e.Subtask.Id == first.Id)
-                        .Select(e => e.Date.Date)
-                        .DefaultIfEmpty(DateTime.MinValue)
-                        .Max();
-
-                    var secondMinDate = schedule
-                        .Where(e => e.Subtask.Id == second.Id)
-                        .Select(e => e.Date.Date)
-                        .DefaultIfEmpty(DateTime.MaxValue)
-                        .Min();
-
-                    if (firstMaxDate > secondMinDate)
+                    var maxDate = taskEntries.Max(h => h.Date);
+                    if (task.Deadline.HasValue && maxDate > task.Deadline.Value)
                     {
-                        // złamana kolejność
-                        score -= 50;
+                        penalty += (int)task.Priority * 500;
                     }
-                }
-            }
-
-            // Ocena przypisań subtasków
-            foreach (var subtask in subtasks)
-            {
-                var assignedTime = schedule
-                    .Where(e => e.Subtask.Id == subtask.Id)
-                    .Sum(e => e.Hours);
-
-                if (assignedTime < subtask.EstimatedTime)
-                {
-                    score -= 40 * (subtask.EstimatedTime - assignedTime);
-                }
-                else if (assignedTime > subtask.EstimatedTime)
-                {
-                    score -= 60 * (assignedTime - subtask.EstimatedTime);
                 }
                 else
                 {
-                    var parentTask = tasks.FirstOrDefault(t => t.EncodedName == subtask.TaskEncodedName);
-                    var priority = parentTask?.Priority ?? TaskPriority.Ważne;
-                    score += 20 * (int)priority;
-                }
-
-                foreach (var entry in schedule.Where(e => e.Subtask.Id == subtask.Id))
-                {
-                    var date = entry.Date.Date;
-                    if (!availabilityByDate.TryGetValue(date, out var availableHours))
-                    {
-                        score -= 50;
-                        continue;
-                    }
-
-                    var totalAssignedForThisDay = scheduleByDate[date].Sum(e => e.Hours);
-                    if (totalAssignedForThisDay > availableHours)
-                    {
-                        score -= 30 * (totalAssignedForThisDay - availableHours);
-                    }
-
-                    if (entry.Hours > availableHours)
-                    {
-                        score -= 25;
-                    }
+                    penalty += (int)task.Priority * 1000;
                 }
             }
 
-            return score;
+            // kara za niepełne przypisanie godzin dla podzadań
+            foreach (var sub in allSubtasks)
+            {
+                var entries = groupedBySubtask.ContainsKey(sub)
+                    ? groupedBySubtask[sub]
+                    : new List<ScheduleEntryDto>();
+
+                var total = entries.Sum(w => w.Hours);
+                var diff = Math.Abs(sub.EstimatedTime - total);
+
+                if (diff > 0)
+                {
+                    penalty += diff * (int)sub.ProgressStatus * (int)TaskPriority.Ważne * 200;
+                }
+            }
+
+            // kara za złamanie kolejności podzadań w ramach zadania
+            var taskGroups = allSubtasks.GroupBy(p => p.TaskEncodedName);
+            foreach (var group in taskGroups)
+            {
+                var orderedSubs = group.OrderBy(p => p.Order).ToList();
+                DateTime? lastEnd = null;
+
+                foreach (var sub in orderedSubs)
+                {
+                    if (!groupedBySubtask.ContainsKey(sub))
+                        continue;
+
+                    var subSchedule = groupedBySubtask[sub];
+                    var earliest = subSchedule.First().Date;
+
+                    if (lastEnd.HasValue && earliest < lastEnd.Value)
+                    {
+                        penalty += (int)sub.ProgressStatus * 300;
+                    }
+
+                    lastEnd = subSchedule.Last().Date;
+                }
+            }
+
+            // kara za przekroczenie dostępnych godzin w danym dniu
+            var dayStats = schedule
+                .GroupBy(h => h.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    Used = g.Sum(x => x.Hours),
+                    Available = availability.FirstOrDefault(a => a.Date == g.Key)?.AvailableHours ?? 0
+                })
+                .Where(x => x.Available > 0)
+                .ToList();
+
+            foreach (var day in dayStats)
+            {
+                if (day.Used > day.Available)
+                {
+                    var over = day.Used - day.Available;
+                    penalty += over * 500;
+                }
+            }
+
+            // kara za nierównomierne rozłożenie godzin
+            if (dayStats.Any())
+            {
+                var avg = dayStats.Average(x => (double)x.Used / x.Available);
+                var sumDev = dayStats.Sum(x => Math.Abs((double)x.Used / x.Available - avg));
+                penalty += sumDev * 20;
+            }
+            const double maxPenalty = 100000;
+            double normalized = 1.0 - Math.Min(penalty / maxPenalty, 1.0);
+            return normalized;
         }
+
+
 
 
     }
