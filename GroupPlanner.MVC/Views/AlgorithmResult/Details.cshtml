@@ -26,6 +26,45 @@
     <strong>Czas działania:</strong> @ViewBag.Duration
 </p>
 
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card p-2 shadow-sm text-center">
+            <h6 class="text-muted">Zaplanowane godziny</h6>
+            <p class="h5">@ViewBag.TotalHoursPlanned</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card p-2 shadow-sm text-center">
+            <h6 class="text-muted">Godziny w terminie</h6>
+            <p class="h5">@ViewBag.HoursOnTime</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card p-2 shadow-sm text-center">
+            <h6 class="text-muted">Godziny po terminie</h6>
+            <p class="h5">@ViewBag.HoursLate</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card p-2 shadow-sm text-center">
+            <h6 class="text-muted">% wykorzystania dostępności</h6>
+            <p class="h5">@ViewBag.UsagePercent %</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card p-2 shadow-sm text-center">
+            <h6 class="text-muted">Naruszenia kolejności</h6>
+            <p class="h5">@ViewBag.OrderViolations</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card p-2 shadow-sm text-center">
+            <h6 class="text-muted">Wynik funkcji celu</h6>
+            <p class="h5">@ViewBag.ResultValue.ToString("F4")</p>
+        </div>
+    </div>
+</div>
+
 <table class="table">
     <thead>
         <tr>
@@ -65,6 +104,11 @@
 <!-- Wykres -->
 <h4>Funkcja celu (Score w kolejnych iteracjach)</h4>
 <canvas id="scoreChart" width="600" height="300"></canvas>
+
+
+
+
+
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

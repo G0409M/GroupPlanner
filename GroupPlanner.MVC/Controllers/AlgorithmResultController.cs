@@ -188,6 +188,70 @@ namespace GroupPlanner.MVC.Controllers
             ViewBag.ResultValue = result.ResultValue;
             ViewBag.ScoreHistory = result.ScoreHistoryJson;
 
+
+
+            // KPI do widoku
+            var totalHoursPlanned = schedule.Sum(x => x.Hours);
+
+            var taskDict = dto.Tasks.ToDictionary(t => t.EncodedName);
+            int hoursOnTime = 0;
+            int hoursLate = 0;
+
+            foreach (var s in schedule)
+            {
+                var task = taskDict.GetValueOrDefault(s.TaskEncodedName ?? "");
+                if (task != null && task.Deadline.HasValue)
+                {
+                    if (s.Date <= task.Deadline.Value)
+                        hoursOnTime += s.Hours;
+                    else
+                        hoursLate += s.Hours;
+                }
+                else
+                {
+                    hoursOnTime += s.Hours;
+                }
+            }
+
+            var availableTotal = dto.Availability.Sum(a => a.AvailableHours);
+            var usagePercent = availableTotal > 0 ? (100.0 * totalHoursPlanned / availableTotal) : 0;
+
+            // liczba naruszeń kolejności
+            int orderViolations = 0;
+            var groupedByTask = dto.Subtasks.GroupBy(s => s.TaskEncodedName);
+
+            foreach (var group in groupedByTask)
+            {
+                var ordered = group.OrderBy(s => s.Order).ToList();
+                DateTime? lastEnd = null;
+
+                foreach (var sub in ordered)
+                {
+                    var entries = schedule
+                        .Where(e => e.Subtask != null && e.Subtask.TaskEncodedName == sub.TaskEncodedName)
+                        .OrderBy(e => e.Date)
+                        .ToList();
+
+                    if (entries.Count == 0)
+                        continue;
+
+                    var earliest = entries.First().Date;
+                    if (lastEnd.HasValue && earliest < lastEnd.Value)
+                    {
+                        orderViolations++;
+                    }
+                    lastEnd = entries.Last().Date;
+                }
+            }
+
+
+            // do ViewBag
+            ViewBag.TotalHoursPlanned = totalHoursPlanned;
+            ViewBag.HoursOnTime = hoursOnTime;
+            ViewBag.HoursLate = hoursLate;
+            ViewBag.UsagePercent = Math.Round(usagePercent, 1);
+            ViewBag.OrderViolations = orderViolations;
+
             return View(dto);
         }
 
