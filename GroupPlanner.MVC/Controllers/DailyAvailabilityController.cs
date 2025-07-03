@@ -1,28 +1,45 @@
 ﻿using AutoMapper;
+using GroupPlanner.Application.Algorithms;
 using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Domain.Entities;
 using GroupPlanner.Domain.Interfaces;
+using GroupPlanner.Infrastructure.Persistance.Repositories;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Newtonsoft.Json;
+using System.Runtime.CompilerServices;
 
 namespace GroupPlanner.MVC.Controllers
 {
     [Authorize]
     public class DailyAvailabilityController : Controller
     {
+        private readonly IAlgorithmResultRepository _algorithmResultRepository;
         private readonly IDailyAvailabilityRepository _repository;
         private readonly IUserContext _userContext;
 
-        public DailyAvailabilityController(IDailyAvailabilityRepository repository, IUserContext userContext)
+        public DailyAvailabilityController(IAlgorithmResultRepository algorithmResultRepository, IDailyAvailabilityRepository repository, IUserContext userContext)
         {
+            _algorithmResultRepository = algorithmResultRepository;
             _repository = repository;
             _userContext = userContext;
         }
 
-        public IActionResult Index()
+        
+        public async Task<IActionResult> Index()
         {
+            var currentUser = _userContext.GetCurrentUser();
+            var results = await _algorithmResultRepository.GetAllByUserId(currentUser.Id);
+
+            ViewBag.AlgorithmResults = results.Select(r => new SelectListItem
+            {
+                Value = r.Id.ToString(),
+                Text = $"{r.Algorithm} | wynik: {r.ResultValue:F2} | {r.CreatedAt:yyyy-MM-dd}"
+            }).ToList();
+
             return View();
         }
 
@@ -106,5 +123,66 @@ namespace GroupPlanner.MVC.Controllers
             await _repository.Delete(id);
             return Ok();
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAlgorithmResults()
+        {
+            var user = _userContext.GetCurrentUser();
+            if (user == null)
+                return Unauthorized();
+
+            var results = await _algorithmResultRepository.GetAllByUserId(user.Id);
+
+            var dto = results.Select(r => new
+            {
+                r.Id,
+                Algorithm = r.Algorithm == AlgorithmType.Genetic ? "Genetic" : "Ant",
+                Created = r.CreatedAt,
+                Score = r.ResultValue   // z wielkiej litery!
+            });
+
+            return Json(dto);
+        }
+
+
+        [HttpGet]
+        public async Task<IActionResult> GetPlannedEntriesForResult(int resultId)
+        {
+            var user = _userContext.GetCurrentUser();
+            if (user == null)
+                return Unauthorized();
+
+            var result = await _algorithmResultRepository.GetByIdAsync(resultId);
+            if (result == null || result.CreatedById != user.Id)
+                return NotFound();
+
+            // Rozpakuj JSON z ResultData
+            var schedule = JsonConvert.DeserializeObject<List<ScheduleEntryDto>>(result.ResultData);
+
+            if (schedule == null)
+                return Json(new List<object>());
+
+            // Przekształć na eventy dla FullCalendar
+            var grouped = schedule
+                .GroupBy(s => new { s.Date, s.SubtaskDescription })
+                .Select(g => new
+                {
+                    title = $"{g.Key.SubtaskDescription} - {g.Sum(x => x.Hours)}h",
+                    start = g.Key.Date.ToString("yyyy-MM-dd"),
+                    color = "#FF9800",
+                    extendedProps = new
+                    {
+                        subtaskDescription = g.Key.SubtaskDescription,
+                        hours = g.Sum(x => x.Hours),
+                        isPlanned = true // <- DODAJ TO
+                    }
+                })
+                .ToList();
+
+            return Json(grouped);
+        }
+
+
+
     }
 }

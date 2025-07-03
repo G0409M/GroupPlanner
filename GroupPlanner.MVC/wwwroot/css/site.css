@@ -23,48 +23,40 @@ body {
     box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
 
-/* Tab Navigation Styling */
-.login-logout-card .card-header {
-    padding: 0px 0px 12px 0px;
-}
-
-.login-logout-card ul.nav-tabs {
-    margin: 0px 0px -12px 0px;
-}
-
-.login-logout-card li.nav-item {
-    width: 50%;
-}
-
-.login-logout-card a.nav-link {
-    font-size: 1rem;
-    color: #495057;
-    text-align: center;
-    padding: 1rem;
-}
-
-.login-logout-card .card-body {
-    padding: 10px 20px;
-}
-
 /* Calendar Styling */
 #calendar {
-    max-width: 700px; /* Reduced calendar width */
-    margin: 0 auto; /* Center the calendar */
-    font-size: 14px; /* Smaller text size */
-    padding: 20px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    font-size: 13px; /* nieco mniejsza czcionka */
+    padding: 10px; /* mniej paddingu */
     border-radius: 8px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     background-color: #fff;
 }
 
-.fc .fc-toolbar-title {
-    font-size: 1.2em; /* Reduced header size */
+/* zmniejszamy wysokoœæ komórek w daygrid */
+.fc-daygrid-day-frame {
+    min-height: 50px; /* normalnie to oko³o 100px */
+}
+
+/* zmniejszamy odstêpy */
+.fc-daygrid-event {
+    margin: 1px;
+    padding: 1px;
+    font-size: 11px;
 }
 
 .fc-daygrid-day-number {
-    font-size: 12px; /* Smaller day number */
+    font-size: 11px;
 }
+
+
+.fc .fc-toolbar-title {
+    font-size: 1.2em;
+}
+
+.
 
 /* Modal Styling */
 .modal-content {
@@ -124,7 +116,7 @@ body {
     background-color: #007bff;
     color: #fff;
     border-radius: 5px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 /* Smooth transitions */

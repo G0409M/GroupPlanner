@@ -1,89 +1,98 @@
 ﻿document.addEventListener('DOMContentLoaded', function () {
-    var calendarEl = document.getElementById('calendar');
-    var calendar = new FullCalendar.Calendar(calendarEl, {
+    const calendarEl = document.getElementById('calendar');
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         editable: true,
         selectable: true,
         displayEventTime: false,
-        events: fetchAvailabilities,
+        contentHeight: 'auto',        
+        fixedWeekCount: true,         
+        aspectRatio: 2.5,             
+
+        // kliknięcie w dzień — dodanie availability tylko jeśli brak algorytmu
         dateClick: function (info) {
-            // Open modal to add new availability on date click
-            $('#availabilityId').val('');
-            $('#availabilityDate').val(info.dateStr);
-            $('#availableHours').val('');
-            $('#availabilityModal').modal('show');
+            if ($('#algorithmSelect').val() === "") {
+                $('#availabilityId').val('');
+                $('#availabilityDate').val(info.dateStr);
+                $('#availableHours').val('');
+                $('#availabilityModal').modal('show');
+            }
         },
+
+        // kliknięcie w event
         eventClick: function (info) {
-            // Open modal to edit availability on event click
-            $('#availabilityId').val(info.event.id);
-            $('#availabilityDate').val(info.event.startStr);
-            $('#availableHours').val(info.event.extendedProps.availableHours);
-            $('#availabilityModal').modal('show');
-        }
+            const isPlanned = info.event.extendedProps.isPlanned;
+
+            if (isPlanned) {
+                // modal z informacją o planowanym zadaniu
+                $('#plannedTaskTitle').text(info.event.title);
+                $('#plannedTaskSubtask').text(info.event.extendedProps.subtaskDescription);
+                $('#plannedTaskHours').text(info.event.extendedProps.hours);
+                $('#plannedTaskDate').text(info.event.start.toISOString().split('T')[0]);
+                $('#plannedTaskModal').modal('show');
+            } else {
+                // modal do edycji dostępności
+                $('#availabilityId').val(info.event.id);
+                $('#availabilityDate').val(info.event.startStr);
+                $('#availableHours').val(info.event.extendedProps.availableHours);
+                $('#availabilityModal').modal('show');
+            }
+        },
     });
 
     calendar.render();
 
-    // Fetch events for calendar
+    // funkcja do pobrania dostępności
     function fetchAvailabilities(fetchInfo, successCallback, failureCallback) {
         $.ajax({
             url: '/DailyAvailability/GetAvailabilities',
             type: 'GET',
             success: function (data) {
-                // Map each availability to a FullCalendar event object
-                var events = data.map(function (availability) {
+                const events = data.map(function (availability) {
                     return {
                         id: availability.id,
-                        title: availability.availableHours + ' hours', // Display hours as title
+                        title: `${availability.availableHours} hours`,
                         start: availability.date,
                         extendedProps: {
-                            availableHours: availability.availableHours
+                            availableHours: availability.availableHours,
+                            isPlanned: false
                         }
                     };
                 });
                 successCallback(events);
-            }
+            },
+            error: failureCallback
         });
     }
 
-    // Handle form submission for adding/editing availability
+    // najpierw załaduj dostępności od razu
+    calendar.addEventSource(fetchAvailabilities);
+
+    // formularz zapis dostępności
     $('#availabilityForm').on('submit', function (e) {
         e.preventDefault();
-        var id = $('#availabilityId').val();
-        var date = $('#availabilityDate').val();
-        var hours = $('#availableHours').val();
-        var data = { id: parseInt(id) || 0, date: date, availableHours: parseFloat(hours) };
+        const id = $('#availabilityId').val();
+        const date = $('#availabilityDate').val();
+        const hours = $('#availableHours').val();
+        const data = { id: parseInt(id) || 0, date: date, availableHours: parseFloat(hours) };
 
-        if (id) {
-            // Update availability
-            $.ajax({
-                url: '/DailyAvailability/UpdateAvailability',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                success: function () {
-                    calendar.refetchEvents();
-                    $('#availabilityModal').modal('hide');
-                }
-            });
-        } else {
-            // Create new availability
-            $.ajax({
-                url: '/DailyAvailability/SaveAvailability',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                success: function () {
-                    calendar.refetchEvents();
-                    $('#availabilityModal').modal('hide');
-                }
-            });
-        }
+        const url = id ? '/DailyAvailability/UpdateAvailability' : '/DailyAvailability/SaveAvailability';
+        $.ajax({
+            url: url,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function () {
+                calendar.refetchEvents();
+                $('#availabilityModal').modal('hide');
+            }
+        });
     });
 
-    // Handle delete availability
+    // obsługa kasowania
     $('#deleteAvailability').on('click', function () {
-        var id = $('#availabilityId').val();
+        const id = $('#availabilityId').val();
         if (id) {
             $.ajax({
                 url: '/DailyAvailability/DeleteAvailability',
@@ -97,4 +106,51 @@
             });
         }
     });
+
+    // załaduj algorytmy do selecta
+    $.ajax({
+        url: '/DailyAvailability/GetAlgorithmResults',
+        method: 'GET',
+        success: function (data) {
+            const select = $('#algorithmSelect');
+            select.empty();
+            select.append('<option value="">availabilities</option>');
+            data.forEach(r => {
+                const dt = new Date(r.created);
+                const formattedDate = dt.toLocaleString('pl-PL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const label = `${r.algorithm} | ${formattedDate} | ${r.score.toFixed(2)}`;
+                select.append(`<option value="${r.id}">${label}</option>`);
+            });
+        }
+    });
+
+    // zmiana wyboru w select
+    $('#algorithmSelect').on('change', function () {
+        const selectedResultId = $(this).val();
+
+        // usuń wszystko
+        calendar.getEventSources().forEach(src => src.remove());
+
+        // zawsze dodaj availability od nowa
+        calendar.addEventSource(fetchAvailabilities);
+
+        if (selectedResultId) {
+            calendar.addEventSource({
+                url: '/DailyAvailability/GetPlannedEntriesForResult',
+                method: 'GET',
+                extraParams: { resultId: selectedResultId },
+                color: '#FF9800',
+                failure() { console.error("Nie udało się pobrać planu"); }
+            });
+        }
+
+        calendar.refetchEvents();
+    });
+
 });
