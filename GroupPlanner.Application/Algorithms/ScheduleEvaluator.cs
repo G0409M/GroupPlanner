@@ -15,110 +15,140 @@ namespace GroupPlanner.Application.Algorithms
     {
         public static double Evaluate(List<ScheduleEntryDto> schedule,List<SubtaskDto> subtasks,List<TaskDto> tasks,List<DailyAvailabilityDto> availability)
         {
-            double penalty = 0;
+            int score = 0;
 
-            // grupujemy harmonogram po subtask
+            // grupowanie po podzadaniu
             var groupedBySubtask = schedule
                 .Where(h => h.Subtask != null)
                 .GroupBy(h => h.Subtask)
                 .ToDictionary(g => g.Key, g => g.OrderBy(h => h.Date).ToList());
 
-            var allSubtasks = subtasks;
-
-            // kara za niezakończone zadania lub po terminie
-            foreach (var task in tasks)
-            {
-                var taskEntries = schedule
-                    .Where(h => h.Subtask != null && h.Subtask.TaskEncodedName == task.EncodedName)
-                    .ToList();
-
-                if (taskEntries.Any())
-                {
-                    var maxDate = taskEntries.Max(h => h.Date);
-                    if (task.Deadline.HasValue && maxDate > task.Deadline.Value)
-                    {
-                        penalty += (int)task.Priority * 500;
-                    }
-                }
-                else
-                {
-                    penalty += (int)task.Priority * 1000;
-                }
-            }
-
-            // kara za niepełne przypisanie godzin dla podzadań
-            foreach (var sub in allSubtasks)
+            // 1️⃣ punkty za pełne przypisanie godzin
+            foreach (var sub in subtasks)
             {
                 var entries = groupedBySubtask.ContainsKey(sub)
                     ? groupedBySubtask[sub]
                     : new List<ScheduleEntryDto>();
 
-                var total = entries.Sum(w => w.Hours);
-                var diff = Math.Abs(sub.EstimatedTime - total);
-
-                if (diff > 0)
+                int total = entries.Sum(e => e.Hours);
+                if (total == sub.EstimatedTime)
                 {
-                    penalty += diff * (int)sub.ProgressStatus * (int)TaskPriority.Ważne * 200;
+                    score += 50; // premia za komplet
+                }
+                else
+                {
+                    score -= 20; // kara za brak godzin
                 }
             }
 
-            // kara za złamanie kolejności podzadań w ramach zadania
-            var taskGroups = allSubtasks.GroupBy(p => p.TaskEncodedName);
-            foreach (var group in taskGroups)
+            // 2️⃣ punkty za przestrzeganie kolejności
+            var groupedByTask = subtasks.GroupBy(x => x.TaskEncodedName);
+            foreach (var taskGroup in groupedByTask)
             {
-                var orderedSubs = group.OrderBy(p => p.Order).ToList();
+                var ordered = taskGroup.OrderBy(s => s.Order).ToList();
                 DateTime? lastEnd = null;
 
-                foreach (var sub in orderedSubs)
+                foreach (var sub in ordered)
                 {
                     if (!groupedBySubtask.ContainsKey(sub))
                         continue;
 
-                    var subSchedule = groupedBySubtask[sub];
-                    var earliest = subSchedule.First().Date;
+                    var subEntries = groupedBySubtask[sub];
+                    var earliest = subEntries.First().Date;
 
                     if (lastEnd.HasValue && earliest < lastEnd.Value)
                     {
-                        penalty += (int)sub.ProgressStatus * 300;
+                        score -= 100; // mocna kara
+                    }
+                    else
+                    {
+                        score += 30; // premia za poprawną kolejność
                     }
 
-                    lastEnd = subSchedule.Last().Date;
+                    lastEnd = subEntries.Last().Date;
                 }
             }
 
-            // kara za przekroczenie dostępnych godzin w danym dniu
+            // 3️⃣ punkty za przestrzeganie deadline
+            foreach (var task in tasks)
+            {
+                var taskEntries = schedule
+                    .Where(e => e.Subtask != null && e.Subtask.TaskEncodedName == task.EncodedName)
+                    .ToList();
+
+                if (!taskEntries.Any())
+                {
+                    score -= 100; // kara brak planu
+                    continue;
+                }
+
+                var maxDate = taskEntries.Max(e => e.Date);
+                if (task.Deadline.HasValue && maxDate > task.Deadline.Value)
+                {
+                    score -= 50;
+                }
+                else
+                {
+                    score += 20;
+                }
+            }
+
+            // 4️⃣ punkty za brak przekroczenia dostępności
             var dayStats = schedule
-                .GroupBy(h => h.Date)
+                .GroupBy(e => e.Date)
                 .Select(g => new
                 {
                     Date = g.Key,
-                    Used = g.Sum(x => x.Hours),
+                    Used = g.Sum(e => e.Hours),
                     Available = availability.FirstOrDefault(a => a.Date == g.Key)?.AvailableHours ?? 0
                 })
-                .Where(x => x.Available > 0)
                 .ToList();
 
             foreach (var day in dayStats)
             {
                 if (day.Used > day.Available)
                 {
-                    var over = day.Used - day.Available;
-                    penalty += over * 500;
+                    score -= 50; // kara za nadgodziny
+                }
+                else
+                {
+                    score += 10; // premia
                 }
             }
 
-            // kara za nierównomierne rozłożenie godzin
+            // 5️⃣ punkty za skupienie godzin (jedno podzadanie na dzień)
+            foreach (var sub in subtasks)
+            {
+                var entries = groupedBySubtask.ContainsKey(sub)
+                    ? groupedBySubtask[sub]
+                    : new List<ScheduleEntryDto>();
+
+                var uniqueDays = entries.Select(e => e.Date).Distinct().Count();
+
+                if (uniqueDays <= 2)
+                {
+                    score += 30; // super
+                }
+                else if (uniqueDays <= 4)
+                {
+                    score += 10; // ok
+                }
+                else
+                {
+                    score -= 20; // rozproszone
+                }
+            }
+
+            // 6️⃣ punktacja za równomierne rozłożenie (jakość planu)
             if (dayStats.Any())
             {
-                var avg = dayStats.Average(x => (double)x.Used / x.Available);
-                var sumDev = dayStats.Sum(x => Math.Abs((double)x.Used / x.Available - avg));
-                penalty += sumDev * 20;
+                var avgLoad = dayStats.Average(x => (double)x.Used / x.Available);
+                var deviation = dayStats.Sum(x => Math.Abs((double)x.Used / x.Available - avgLoad));
+                score -= (int)(deviation * 10);
             }
-            const double maxPenalty = 100000;
-            double normalized = 1.0 - Math.Min(penalty / maxPenalty, 1.0);
-            return normalized;
-        }
 
+            return score;
+        }
 
 
 

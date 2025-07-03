@@ -137,62 +137,70 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                 .Where(t => t.EncodedName != null)
                 .ToDictionary(t => t.EncodedName!);
 
-            var shuffledSubtasks = subtasks.OrderBy(_ => random.Next()).ToList();
+            int maxOrder = subtasks.Max(s => s.Order);
 
-            foreach (var subtask in shuffledSubtasks)
+            for (int orderLevel = 1; orderLevel <= maxOrder; orderLevel++)
             {
-                if (subtask.TaskEncodedName == null)
-                    continue; // zabezpieczenie
+                var subtasksInLevel = subtasks
+                    .Where(s => s.Order == orderLevel)
+                    .OrderBy(_ => random.Next())
+                    .ToList();
 
-                var task = taskMap.GetValueOrDefault(subtask.TaskEncodedName);
-                var deadline = task?.Deadline ?? DateTime.MaxValue;
-                int remaining = subtask.EstimatedTime;
-
-                while (remaining > 0)
+                foreach (var subtask in subtasksInLevel)
                 {
-                    var candidateDays = availableDays
-                        .Where(d => d.Date <= deadline && d.HoursLeft > 0)
-                        .OrderByDescending(d => d.HoursLeft)
-                        .ToList();
+                    if (subtask.TaskEncodedName == null)
+                        continue;
 
-                    if (!candidateDays.Any())
-                        break;
+                    var task = taskMap.GetValueOrDefault(subtask.TaskEncodedName);
+                    var deadline = task?.Deadline ?? DateTime.MaxValue;
+                    int remaining = subtask.EstimatedTime;
 
-                    var day = candidateDays.First();
-                    int allocatable = Math.Min(remaining, day.HoursLeft);
-                    int assigned = random.Next(1, allocatable + 1);
-
-                    schedule.Add(new ScheduleEntryDto
+                    while (remaining > 0)
                     {
-                        Date = day.Date,
-                        Hours = assigned,
-                        Subtask = subtask
-                    });
+                        var candidateDays = availableDays
+                            .Where(d => d.Date <= deadline && d.HoursLeft > 0)
+                            .OrderByDescending(d => d.HoursLeft)
+                            .ToList();
 
-                    day.HoursLeft -= assigned;
-                    remaining -= assigned;
-                }
+                        if (!candidateDays.Any())
+                            break;
 
-                if (remaining > 0)
-                {
-                    var fallbackDays = availableDays.OrderBy(_ => random.Next()).ToList();
-                    foreach (var day in fallbackDays)
-                    {
-                        if (remaining <= 0) break;
+                        var day = candidateDays.First();
+                        int allocatable = Math.Min(remaining, day.HoursLeft);
+                        int assigned = random.Next(1, allocatable + 1);
 
-                        int assigned = Math.Min(remaining, 4);
                         schedule.Add(new ScheduleEntryDto
                         {
                             Date = day.Date,
                             Hours = assigned,
                             Subtask = subtask
                         });
+
+                        day.HoursLeft -= assigned;
                         remaining -= assigned;
                     }
 
                     if (remaining > 0)
                     {
-                        Console.WriteLine($"[WARN] Could not assign {remaining}h for subtask {subtask.Description}");
+                        var fallbackDays = availableDays.OrderBy(_ => random.Next()).ToList();
+                        foreach (var day in fallbackDays)
+                        {
+                            if (remaining <= 0) break;
+
+                            int assigned = Math.Min(remaining, 4);
+                            schedule.Add(new ScheduleEntryDto
+                            {
+                                Date = day.Date,
+                                Hours = assigned,
+                                Subtask = subtask
+                            });
+                            remaining -= assigned;
+                        }
+
+                        if (remaining > 0)
+                        {
+                            Console.WriteLine($"[WARN] Could not assign {remaining}h for subtask {subtask.Description}");
+                        }
                     }
                 }
             }
@@ -203,7 +211,6 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                 .ThenBy(s => s.Subtask?.Order ?? int.MaxValue)
                 .ToList();
         }
-
 
         private List<ScheduleEntryDto> TournamentSelection(List<EvaluatedSchedule> evaluated,int tournamentSize,Random random)
         {

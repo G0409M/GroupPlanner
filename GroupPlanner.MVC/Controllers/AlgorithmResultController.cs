@@ -216,7 +216,6 @@ namespace GroupPlanner.MVC.Controllers
             var availableTotal = dto.Availability.Sum(a => a.AvailableHours);
             var usagePercent = availableTotal > 0 ? (100.0 * totalHoursPlanned / availableTotal) : 0;
 
-            // liczba naruszeń kolejności
             int orderViolations = 0;
             var groupedByTask = dto.Subtasks.GroupBy(s => s.TaskEncodedName);
 
@@ -228,21 +227,26 @@ namespace GroupPlanner.MVC.Controllers
                 foreach (var sub in ordered)
                 {
                     var entries = schedule
-                        .Where(e => e.Subtask != null && e.Subtask.TaskEncodedName == sub.TaskEncodedName)
-                        .OrderBy(e => e.Date)
+                        .Where(e => e.Subtask != null
+                                    && e.Subtask.TaskEncodedName == sub.TaskEncodedName
+                                    && e.Subtask.Order == sub.Order)
                         .ToList();
 
                     if (entries.Count == 0)
                         continue;
 
-                    var earliest = entries.First().Date;
+                    var earliest = entries.Min(e => e.Date);
+                    var latest = entries.Max(e => e.Date);
+
                     if (lastEnd.HasValue && earliest < lastEnd.Value)
                     {
                         orderViolations++;
                     }
-                    lastEnd = entries.Last().Date;
+                    lastEnd = latest;
                 }
             }
+
+
 
 
             // do ViewBag
