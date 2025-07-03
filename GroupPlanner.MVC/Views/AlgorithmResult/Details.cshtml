@@ -4,68 +4,108 @@
 @{
     var schedule = ViewBag.Schedule as List<ScheduleEntryDto>;
 
-    // Lista unikalnych nazw zadań
     var taskNames = schedule.Select(s => s.TaskEncodedName).Distinct().ToList();
-
-    // Przygotowanie kontrastowych kolorów (np. 0, 60, 120, 180, ...)
     var taskColors = new Dictionary<string, string>();
     int taskCount = taskNames.Count;
     for (int i = 0; i < taskCount; i++)
     {
-        int hue = (i * 360 / taskCount); // równy odstęp na kole barw
-        taskColors[taskNames[i]] = $"hsl({hue}, 60%, 85%)"; // kontrastowe, ale nadal jasne
+        int hue = (i * 360 / taskCount);
+        taskColors[taskNames[i]] = $"hsl({hue}, 60%, 85%)";
     }
 }
-
 
 <h2>Szczegóły wyniku algorytmu</h2>
 
 <p>
     <strong>Algorytm:</strong> @ViewBag.Algorithm <br />
-    <strong>Wynik:</strong> @ViewBag.ResultValue <br />
+    <strong>Wynik:</strong> @ViewBag.ResultValue.ToString("F2") <br />
     <strong>Czas działania:</strong> @ViewBag.Duration
 </p>
 
 <div class="row mb-4">
+
     <div class="col-md-2">
-        <div class="card p-2 shadow-sm text-center">
+        <div class="card p-2 text-center shadow-sm">
             <h6 class="text-muted">Zaplanowane godziny</h6>
-            <p class="h5">@ViewBag.TotalHoursPlanned</p>
+            <p class="h5">
+                @ViewBag.TotalHoursPlanned
+                <span class="small text-muted">(@ViewBag.TotalHoursPlannedPercent %)</span>
+            </p>
         </div>
     </div>
+
     <div class="col-md-2">
-        <div class="card p-2 shadow-sm text-center">
-            <h6 class="text-muted">Godziny w terminie</h6>
-            <p class="h5">@ViewBag.HoursOnTime</p>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="card p-2 shadow-sm text-center">
+        <div class="card p-2 text-center shadow-sm">
             <h6 class="text-muted">Godziny po terminie</h6>
-            <p class="h5">@ViewBag.HoursLate</p>
+            <p class="h5">
+                @ViewBag.HoursLate
+                <span class="small text-muted">(@ViewBag.HoursLatePercent %)</span>
+            </p>
         </div>
     </div>
+
     <div class="col-md-2">
-        <div class="card p-2 shadow-sm text-center">
+        <div class="card p-2 text-center shadow-sm">
             <h6 class="text-muted">% wykorzystania dostępności</h6>
             <p class="h5">@ViewBag.UsagePercent %</p>
         </div>
     </div>
+
     <div class="col-md-2">
-        <div class="card p-2 shadow-sm text-center">
+        <div class="card p-2 text-center shadow-sm">
             <h6 class="text-muted">Naruszenia kolejności</h6>
             <p class="h5">@ViewBag.OrderViolations</p>
         </div>
     </div>
+
     <div class="col-md-2">
-        <div class="card p-2 shadow-sm text-center">
+        <div class="card p-2 text-center shadow-sm">
+            <h6 class="text-muted">Śr. wykorzystanie dzienne</h6>
+            <p class="h5">@ViewBag.AvgUsagePerDay %</p>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card p-2 text-center shadow-sm">
             <h6 class="text-muted">Wynik funkcji celu</h6>
-            <p class="h5">@ViewBag.ResultValue.ToString("F4")</p>
+            <p class="h5">@ViewBag.ResultValue.ToString("F2")</p>
         </div>
     </div>
 </div>
 
-<table class="table">
+<div class="row mb-4">
+
+    <div class="col-md-2">
+        <div class="card p-2 text-center shadow-sm">
+            <h6 class="text-muted">Podzadania nierozdzielone</h6>
+            <p class="h5">@ViewBag.NonSplitSubtasks</p>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card p-2 text-center shadow-sm">
+            <h6 class="text-muted">Śr. dni/podzadanie</h6>
+            <p class="h5">@ViewBag.AvgDaysPerSubtask</p>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card p-2 text-center shadow-sm">
+            <h6 class="text-muted">Śr. blok godzin</h6>
+            <p class="h5">@ViewBag.AvgBlockSize</p>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card p-2 text-center shadow-sm">
+            <h6 class="text-muted">Przekroczenia dni</h6>
+            <p class="h5">@ViewBag.OverbookedDays</p>
+        </div>
+    </div>
+
+</div>
+
+<table class="table table-striped mt-4">
     <thead>
         <tr>
             <th>Data</th>
@@ -85,11 +125,9 @@
                 <td style="background-color: @bgColor">@entry.Hours</td>
             </tr>
         }
-
     </tbody>
 </table>
 
-<!-- Legenda kolorów -->
 <h5>Legenda kolorów zadań:</h5>
 <ul class="list-unstyled">
     @foreach (var kvp in taskColors)
@@ -101,14 +139,8 @@
     }
 </ul>
 
-<!-- Wykres -->
 <h4>Funkcja celu (Score w kolejnych iteracjach)</h4>
 <canvas id="scoreChart" width="600" height="300"></canvas>
-
-
-
-
-
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -121,4 +153,4 @@
     </script>
 }
 
-<a asp-action="Index" class="btn btn-secondary">Powrót</a>
+<a asp-action="Index" class="btn btn-secondary mt-3">Powrót</a>

@@ -108,7 +108,7 @@ namespace GroupPlanner.Application.Algorithms
             {
                 if (day.Used > day.Available)
                 {
-                    score -= 50; // kara za nadgodziny
+                    score -= 100; // kara za nadgodziny
                 }
                 else
                 {

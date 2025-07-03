@@ -185,13 +185,12 @@ namespace GroupPlanner.MVC.Controllers
             ViewBag.Schedule = schedule;
             ViewBag.Algorithm = result.Algorithm;
             ViewBag.Duration = result.Duration;
-            ViewBag.ResultValue = result.ResultValue;
+            ViewBag.ResultValue = Math.Round(result.ResultValue, 2); // zaokrąglenie
             ViewBag.ScoreHistory = result.ScoreHistoryJson;
 
-
-
-            // KPI do widoku
             var totalHoursPlanned = schedule.Sum(x => x.Hours);
+            var totalToPlan = dto.Subtasks.Sum(s => s.EstimatedTime);
+            var plannedPercent = totalToPlan > 0 ? 100.0 * totalHoursPlanned / totalToPlan : 0;
 
             var taskDict = dto.Tasks.ToDictionary(t => t.EncodedName);
             int hoursOnTime = 0;
@@ -212,6 +211,8 @@ namespace GroupPlanner.MVC.Controllers
                     hoursOnTime += s.Hours;
                 }
             }
+
+            var hoursLatePercent = totalHoursPlanned > 0 ? 100.0 * hoursLate / totalHoursPlanned : 0;
 
             var availableTotal = dto.Availability.Sum(a => a.AvailableHours);
             var usagePercent = availableTotal > 0 ? (100.0 * totalHoursPlanned / availableTotal) : 0;
@@ -242,22 +243,77 @@ namespace GroupPlanner.MVC.Controllers
                     {
                         orderViolations++;
                     }
+
                     lastEnd = latest;
                 }
             }
 
+            // podzadania nierozdrobnione (w pełni zaplanowane)
+            var nonSplitSubtasks = dto.Subtasks.Count(sub =>
+            {
+                var assigned = schedule
+                    .Where(s => s.Subtask?.Id == sub.Id)
+                    .Sum(s => s.Hours);
+                return assigned >= sub.EstimatedTime;
+            });
 
+            // średnia liczba dni na podzadanie
+            var avgDaysPerSubtask = dto.Subtasks
+                .Select(sub =>
+                {
+                    var days = schedule
+                        .Where(e => e.Subtask?.Id == sub.Id)
+                        .Select(e => e.Date)
+                        .Distinct()
+                        .Count();
+                    return days;
+                })
+                .DefaultIfEmpty(0)
+                .Average();
 
+            // średnia wielkość bloku godzinowego
+            var avgBlockSize = schedule
+                .GroupBy(x => (x.Date, x.Subtask?.Id))
+                .Select(g => g.Sum(x => x.Hours))
+                .DefaultIfEmpty(0)
+                .Average();
 
-            // do ViewBag
+            // dni z przekroczeniem dostępności
+            var overbookedDays = dto.Availability
+                .Count(av =>
+                {
+                    var used = schedule
+                        .Where(s => s.Date == av.Date)
+                        .Sum(s => s.Hours);
+                    return used > av.AvailableHours;
+                });
+
+            // średnie wykorzystanie dzienne
+            var avgUsagePerDay = dto.Availability.Any()
+                ? dto.Availability.Average(av =>
+                {
+                    var used = schedule.Where(s => s.Date == av.Date).Sum(s => s.Hours);
+                    return 100.0 * used / av.AvailableHours;
+                })
+                : 0;
+
+            // ViewBag
             ViewBag.TotalHoursPlanned = totalHoursPlanned;
+            ViewBag.TotalHoursPlannedPercent = Math.Round(plannedPercent, 1);
             ViewBag.HoursOnTime = hoursOnTime;
             ViewBag.HoursLate = hoursLate;
+            ViewBag.HoursLatePercent = Math.Round(hoursLatePercent, 1);
             ViewBag.UsagePercent = Math.Round(usagePercent, 1);
             ViewBag.OrderViolations = orderViolations;
+            ViewBag.NonSplitSubtasks = nonSplitSubtasks;
+            ViewBag.AvgDaysPerSubtask = Math.Round(avgDaysPerSubtask, 2);
+            ViewBag.AvgBlockSize = Math.Round(avgBlockSize, 2);
+            ViewBag.OverbookedDays = overbookedDays;
+            ViewBag.AvgUsagePerDay = Math.Round(avgUsagePerDay, 1);
 
             return View(dto);
         }
+
 
         [HttpGet]
         public async Task<IActionResult> Delete(int id)

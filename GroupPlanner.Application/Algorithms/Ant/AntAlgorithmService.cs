@@ -76,6 +76,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
         {
             var schedule = new List<ScheduleEntryDto>();
 
+            // dostępność - kopia do modyfikacji
             var availableDays = availabilities
                 .Select(a => new AvailableDay
                 {
@@ -90,6 +91,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 .OrderBy(g => g.Key)
                 .ToList();
 
+            double q0 = 0.6; // parametr eksploracji/eksploatacji
+
             foreach (var orderGroup in subtasksByOrder)
             {
                 foreach (var subtask in orderGroup.OrderBy(_ => random.Next()))
@@ -97,7 +100,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                     if (subtask.TaskEncodedName == null)
                         continue;
 
-                    // hard constraint: nie zaczynaj dopóki poprzednie nie skończone
+                    // hard constraint: nie zaczynaj jeśli poprzednie nie skończone
                     if (subtask.Order > 1)
                     {
                         var previousSubs = subtasks
@@ -114,18 +117,28 @@ namespace GroupPlanner.Application.Algorithms.Ant
                         });
 
                         if (!previousDone)
-                            continue; // nie można zacząć
+                            continue;
 
-                        // dodatkowe ograniczenie: nie przed zakończeniem poprzedniego
+                        // dodatkowo pilnuj dat
                         var prevEndDate = schedule
                             .Where(x => previousSubs.Any(p => p.TaskEncodedName == x.Subtask?.TaskEncodedName && p.Order == x.Subtask?.Order))
                             .OrderByDescending(x => x.Date)
                             .Select(x => x.Date)
                             .FirstOrDefault();
 
-                        availableDays = availableDays
-                            .Where(d => d.Date >= prevEndDate)
-                            .ToList();
+                        if (prevEndDate != default)
+                        {
+                            // filtruj tylko dni po zakończeniu poprzedniego
+                            availableDays = availabilities
+                                .Select(a => new AvailableDay
+                                {
+                                    Date = a.Date,
+                                    HoursLeft = a.AvailableHours
+                                })
+                                .OrderBy(a => a.Date)
+                                .Where(d => d.Date >= prevEndDate)
+                                .ToList();
+                        }
                     }
 
                     int remaining = subtask.EstimatedTime;
@@ -135,14 +148,22 @@ namespace GroupPlanner.Application.Algorithms.Ant
                         var deadline = tasks.FirstOrDefault(t => t.EncodedName == subtask.TaskEncodedName)?.Deadline
                             ?? DateTime.MaxValue;
 
-                        // candidateDays tylko w terminie
                         var candidateDays = availableDays
                             .Where(d => d.Date <= deadline && d.HoursLeft > 0)
                             .ToList();
 
+                        // fallback: jeśli w terminie nie ma miejsca, próbuj po deadline
                         if (!candidateDays.Any())
-                            break; // nie próbujemy na siłę
+                        {
+                            candidateDays = availableDays
+                                .Where(d => d.HoursLeft > 0)
+                                .ToList();
 
+                            if (!candidateDays.Any())
+                                break;
+                        }
+
+                        // policz prawdopodobieństwa
                         var probabilities = new List<(DateTime day, double probability)>();
                         double denom = 0;
 
@@ -151,7 +172,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                             var key = (subtask.TaskEncodedName, day.Date);
                             double tau = pheromone.GetValueOrDefault(key, 1.0);
 
-                            double heuristic = 1.0 / (1 + Math.Abs((day.Date - deadline).TotalDays));
+                            double heuristic = 1.0 / (1.0 + Math.Abs((day.Date - deadline).TotalDays));
                             heuristic *= day.HoursLeft;
 
                             double value = Math.Pow(tau, alpha) * Math.Pow(heuristic, beta);
@@ -166,23 +187,39 @@ namespace GroupPlanner.Application.Algorithms.Ant
                             .Select(p => (day: p.day, prob: p.probability / denom))
                             .ToList();
 
-                        double roll = random.NextDouble();
-                        double cumulative = 0;
-                        DateTime chosenDate = normalized.Last().day;
+                        // mechanizm q0
+                        double q = random.NextDouble();
+                        DateTime chosenDate;
 
-                        foreach (var p in normalized)
+                        if (q < q0)
                         {
-                            cumulative += p.prob;
-                            if (roll <= cumulative)
+                            // exploitation
+                            chosenDate = normalized.OrderByDescending(p => p.prob).First().day;
+                        }
+                        else
+                        {
+                            // exploration
+                            double roll = random.NextDouble();
+                            double cumulative = 0;
+                            chosenDate = normalized.Last().day;
+
+                            foreach (var p in normalized)
                             {
-                                chosenDate = p.day;
-                                break;
+                                cumulative += p.prob;
+                                if (roll <= cumulative)
+                                {
+                                    chosenDate = p.day;
+                                    break;
+                                }
                             }
                         }
 
                         var chosenDay = availableDays.First(d => d.Date == chosenDate);
                         int assignable = Math.Min(remaining, chosenDay.HoursLeft);
-                        int assigned = Math.Min(assignable, random.Next(1, assignable + 1));
+
+                        // minimalny blok
+                        int minBlock = Math.Min(2, assignable);
+                        int assigned = random.Next(minBlock, assignable + 1);
 
                         schedule.Add(new ScheduleEntryDto
                         {
@@ -203,6 +240,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 .ThenBy(s => s.Subtask?.Order ?? int.MaxValue)
                 .ToList();
         }
+
 
 
 
