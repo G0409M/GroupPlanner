@@ -11,12 +11,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
     {
         private readonly Random _random = new();
 
-        public async Task<AlgorithmRunResultDto> RunAsync(
-            List<TaskDto> tasks,
-            List<SubtaskDto> subtasks,
-            List<DailyAvailabilityDto> availabilities,
-            AntAlgorithmParameters parameters,
-            Func<int, double, System.Threading.Tasks.Task>? reportProgress = null)
+        public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities,AntAlgorithmParameters parameters,
+                    Func<int, double, System.Threading.Tasks.Task>? reportProgress = null)
         {
             // inicjalizacja feromonów
             var pheromone = new Dictionary<(string subtaskEncodedName, DateTime date), double>();
@@ -33,28 +29,47 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 var solutions = new List<List<ScheduleEntryDto>>();
                 var scores = new List<double>();
 
+                // dynamiczne q0 - np. od 0.5 do 0.9
+                double q0 = 0.5 + 0.4 * ((double)iter / parameters.Iterations);
+
                 for (int k = 0; k < parameters.AntCount; k++)
                 {
-                    var schedule = BuildAntSchedule(pheromone, subtasks, availabilities, tasks, parameters.Alpha, parameters.Beta, _random);
+                    var schedule = BuildAntSchedule(
+                        pheromone,
+                        subtasks,
+                        availabilities,
+                        tasks,
+                        parameters.Alpha,
+                        parameters.Beta,
+                        _random
+                    );
 
                     var score = ScheduleEvaluator.Evaluate(schedule, subtasks, tasks, availabilities);
                     solutions.Add(schedule);
                     scores.Add(score);
 
-                    if (score > bestScore)
+                    if (score > bestScore || bestSchedule == null)
                     {
                         bestScore = score;
                         bestSchedule = schedule;
                     }
                 }
 
-                UpdatePheromones(pheromone, solutions, scores, parameters.Q, parameters.EvaporationRate);
+                // aktualizacja feromonów
+                UpdatePheromones(pheromone, solutions, scores, parameters.Q, parameters.EvaporationRate,availabilities);
 
+                // historia do wykresu
                 scoreHistory.Add(bestScore);
+
+                double avgScore = scores.Average();
+                Console.WriteLine($"[ANT] Iter {iter + 1}/{parameters.Iterations} | bestScore: {bestScore:F4} | avgScore: {avgScore:F4}");
 
                 if (reportProgress != null)
                     await reportProgress(iter + 1, bestScore);
             }
+
+            // na wypadek gdyby wszystkie rozwiązania były niepoprawne
+            bestSchedule ??= new List<ScheduleEntryDto>();
 
             return new AlgorithmRunResultDto
             {
@@ -65,18 +80,12 @@ namespace GroupPlanner.Application.Algorithms.Ant
             };
         }
 
-        private List<ScheduleEntryDto> BuildAntSchedule(
-    Dictionary<(string subtaskEncodedName, DateTime date), double> pheromone,
-    List<SubtaskDto> subtasks,
-    List<DailyAvailabilityDto> availabilities,
-    List<TaskDto> tasks,
-    double alpha,
-    double beta,
-    Random random)
+
+        private List<ScheduleEntryDto> BuildAntSchedule(Dictionary<(string subtaskEncodedName, DateTime date), double> pheromone,List<SubtaskDto> subtasks,
+    List<DailyAvailabilityDto> availabilities,List<TaskDto> tasks,double alpha, double beta, Random random)
         {
             var schedule = new List<ScheduleEntryDto>();
 
-            // dostępność - kopia do modyfikacji
             var availableDays = availabilities
                 .Select(a => new AvailableDay
                 {
@@ -91,7 +100,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 .OrderBy(g => g.Key)
                 .ToList();
 
-            double q0 = 0.6; // parametr eksploracji/eksploatacji
+            double q0 = 0.8; // parametr eksploracji/eksploatacji
 
             foreach (var orderGroup in subtasksByOrder)
             {
@@ -100,7 +109,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                     if (subtask.TaskEncodedName == null)
                         continue;
 
-                    // hard constraint: nie zaczynaj jeśli poprzednie nie skończone
+                    // pilnuj kolejności
                     if (subtask.Order > 1)
                     {
                         var previousSubs = subtasks
@@ -119,7 +128,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                         if (!previousDone)
                             continue;
 
-                        // dodatkowo pilnuj dat
+                        // dodatkowo blokuj dni przed zakończeniem poprzedniego
                         var prevEndDate = schedule
                             .Where(x => previousSubs.Any(p => p.TaskEncodedName == x.Subtask?.TaskEncodedName && p.Order == x.Subtask?.Order))
                             .OrderByDescending(x => x.Date)
@@ -128,7 +137,6 @@ namespace GroupPlanner.Application.Algorithms.Ant
 
                         if (prevEndDate != default)
                         {
-                            // filtruj tylko dni po zakończeniu poprzedniego
                             availableDays = availabilities
                                 .Select(a => new AvailableDay
                                 {
@@ -152,9 +160,9 @@ namespace GroupPlanner.Application.Algorithms.Ant
                             .Where(d => d.Date <= deadline && d.HoursLeft > 0)
                             .ToList();
 
-                        // fallback: jeśli w terminie nie ma miejsca, próbuj po deadline
                         if (!candidateDays.Any())
                         {
+                            // fallback - spróbuj poza terminem
                             candidateDays = availableDays
                                 .Where(d => d.HoursLeft > 0)
                                 .ToList();
@@ -163,7 +171,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                                 break;
                         }
 
-                        // policz prawdopodobieństwa
+                        // heurystyka - bierz pod uwagę obciążenie dnia
                         var probabilities = new List<(DateTime day, double probability)>();
                         double denom = 0;
 
@@ -172,8 +180,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
                             var key = (subtask.TaskEncodedName, day.Date);
                             double tau = pheromone.GetValueOrDefault(key, 1.0);
 
-                            double heuristic = 1.0 / (1.0 + Math.Abs((day.Date - deadline).TotalDays));
-                            heuristic *= day.HoursLeft;
+                            double loadFactor = 1.0 - ((day.HoursLeft * 1.0) / (availabilities.First(a => a.Date == day.Date).AvailableHours + 0.1)); // im mniej wykorzystane, tym lepiej
+                            double heuristic = (1.0 / (1 + Math.Abs((day.Date - deadline).TotalDays))) * (1 + loadFactor);
 
                             double value = Math.Pow(tau, alpha) * Math.Pow(heuristic, beta);
                             probabilities.Add((day.Date, value));
@@ -187,18 +195,15 @@ namespace GroupPlanner.Application.Algorithms.Ant
                             .Select(p => (day: p.day, prob: p.probability / denom))
                             .ToList();
 
-                        // mechanizm q0
                         double q = random.NextDouble();
                         DateTime chosenDate;
 
                         if (q < q0)
                         {
-                            // exploitation
                             chosenDate = normalized.OrderByDescending(p => p.prob).First().day;
                         }
                         else
                         {
-                            // exploration
                             double roll = random.NextDouble();
                             double cumulative = 0;
                             chosenDate = normalized.Last().day;
@@ -217,9 +222,11 @@ namespace GroupPlanner.Application.Algorithms.Ant
                         var chosenDay = availableDays.First(d => d.Date == chosenDate);
                         int assignable = Math.Min(remaining, chosenDay.HoursLeft);
 
-                        // minimalny blok
-                        int minBlock = Math.Min(2, assignable);
-                        int assigned = random.Next(minBlock, assignable + 1);
+                        if (assignable <= 0)
+                            break;
+
+                        // bez wymuszania minimalnego bloku
+                        int assigned = random.Next(1, assignable + 1);
 
                         schedule.Add(new ScheduleEntryDto
                         {
@@ -240,25 +247,13 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 .ThenBy(s => s.Subtask?.Order ?? int.MaxValue)
                 .ToList();
         }
-
-
-
-
-
-
-
-
-        private void UpdatePheromones(
-    Dictionary<(string subtaskEncodedName, DateTime date), double> pheromones,
-    List<List<ScheduleEntryDto>> antSchedules,
-    List<double> antScores,
-    double evaporationRate,
-    double Q)
+        private void UpdatePheromones(Dictionary<(string subtaskEncodedName, DateTime date), double> pheromones,List<List<ScheduleEntryDto>> antSchedules,List<double> antScores,double evaporationRate, double Q,
+                                    List<DailyAvailabilityDto> availabilities)
         {
             double minPheromone = 0.1;
             double maxPheromone = 5.0;
 
-            // parowanie
+            // parowanie globalne
             foreach (var key in pheromones.Keys.ToList())
             {
                 pheromones[key] *= (1 - evaporationRate);
@@ -274,13 +269,31 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 foreach (var entry in solution.Where(x => x.Subtask != null))
                 {
                     var key = (entry.Subtask!.TaskEncodedName ?? "", entry.Date);
-                    pheromones[key] += contribution;
-                    pheromones[key] = Math.Min(maxPheromone, pheromones[key]);
+
+                    // Sprawdź czy dzień nie został przeładowany
+                    var used = solution
+                        .Where(s => s.Date == entry.Date)
+                        .Sum(s => s.Hours);
+
+                    var available = availabilities
+                        .FirstOrDefault(a => a.Date == entry.Date)?.AvailableHours ?? 0;
+
+                    if (used <= available)
+                    {
+                        // normalne wzmocnienie
+                        pheromones[key] += contribution;
+                    }
+                    else
+                    {
+                        // kara - dodatkowe parowanie
+                        pheromones[key] *= (1 - evaporationRate * 2);
+                    }
+
+                    pheromones[key] = Math.Clamp(pheromones[key], minPheromone, maxPheromone);
                 }
             }
         }
 
 
     }
-
 }
