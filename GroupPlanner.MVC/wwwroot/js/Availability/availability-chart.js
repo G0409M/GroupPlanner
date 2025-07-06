@@ -68,7 +68,7 @@
     }
 
     function fetchDataAndRenderChart(startDate, endDate) {
-        fetch('/Home/GetDailyAvailabilityData')
+        fetch('/Availability/GetDailyAvailabilityData')
             .then(response => response.json())
             .then(data => {
                 const grouped = {};
