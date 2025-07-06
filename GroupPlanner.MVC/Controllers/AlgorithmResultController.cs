@@ -251,10 +251,11 @@ namespace GroupPlanner.MVC.Controllers
             // podzadania nierozdrobnione (w pełni zaplanowane)
             var nonSplitSubtasks = dto.Subtasks.Count(sub =>
             {
-                var assigned = schedule
+                var entries = schedule
                     .Where(s => s.Subtask?.Id == sub.Id)
-                    .Sum(s => s.Hours);
-                return assigned >= sub.EstimatedTime;
+                    .ToList();
+
+                return entries.Count == 1 && entries.Sum(s => s.Hours) >= sub.EstimatedTime;
             });
 
             // średnia liczba dni na podzadanie

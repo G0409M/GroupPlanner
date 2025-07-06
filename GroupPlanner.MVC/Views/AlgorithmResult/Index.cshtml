@@ -1,4 +1,6 @@
 ﻿@model List<GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto>
+@using GroupPlanner.Domain.Entities
+
 @{
     ViewData["Title"] = "Algorithm Results";
 }
@@ -28,25 +30,30 @@
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Algorithm</th>
-                            <th>Date</th>
-                            <th>Score</th>
-                            <th>Duration</th>
-                            <th>Actions</th>
+                            <th style="text-transform: none;">Algorithm</th>
+                            <th style="text-transform: none;">Date</th>
+                            <th style="text-transform: none;">Score</th>
+                            <th style="text-transform: none;">Duration</th>
+                            <th style="text-transform: none;">Actions</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         @foreach (var result in Model)
                         {
                             <tr>
                                 <td>
-                                    <span class="badge bg-info text-dark">
+                                    <span class="badge fs-6
+                                    @((result.Algorithm == AlgorithmType.Ant)
+                                        ? "bg-success text-white"
+                                        : "bg-primary text-white")">
                                         @result.Algorithm
                                     </span>
                                 </td>
+
                                 <td>@result.CreatedAt.ToLocalTime().ToString("g")</td>
                                 <td>@result.ResultValue.ToString("F2")</td>
-                                <td>@result.Duration</td>
+                                <td>@result.Duration.TotalSeconds.ToString("F3") s</td>
                                 <td>
                                     <div class="d-flex gap-2">
                                         <!-- Details as GET link -->
