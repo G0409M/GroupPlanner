@@ -1,0 +1,107 @@
+﻿@{
+    ViewData["Title"] = "Daily Availability";
+    Layout = "_Layout";
+}
+
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css"
+      rel="stylesheet" />
+
+<div class="container my-4">
+
+    <!-- Page Header -->
+    <div class="mb-4 text-start">
+        <h1 class="h3 mb-0">Your Availability</h1>
+        <small class="text-muted">Manage daily availability and preview scheduled tasks</small>
+    </div>
+
+    <!-- Selector Card -->
+    <div class="card mb-4 border-info shadow-sm">
+        <div class="card-header bg-info text-white text-start">
+            <h5 class="mb-0">Preview Selection</h5>
+        </div>
+        <div class="card-body">
+            <select id="algorithmSelect"
+                    class="form-select form-select-sm w-100">
+                <option value="">Available Hours</option>
+            </select>
+        </div>
+    </div>
+
+
+    <!-- Calendar Card -->
+    <div class="card mb-4 border-primary shadow-sm">
+        <div class="card-body p-0">
+            <div id="calendar" class="w-100 rounded-top" style="height: 600px;"></div>
+        </div>
+    </div>
+
+    <!-- Modals (unchanged) -->
+    <div class="modal fade"
+         id="availabilityModal"
+         tabindex="-1"
+         aria-labelledby="availabilityModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="availabilityModalLabel">Edit Availability</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="availabilityForm">
+                        <input type="hidden" id="availabilityId" />
+                        <div class="mb-3">
+                            <label for="availabilityDate" class="form-label">Date</label>
+                            <input type="text" id="availabilityDate" class="form-control" readonly />
+                        </div>
+                        <div class="mb-3">
+                            <label for="availableHours" class="form-label">Available Hours</label>
+                            <input type="number" id="availableHours" class="form-control" step="1" min="0" max="24" />
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" id="deleteAvailability" class="btn btn-outline-danger">Delete</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade"
+         id="plannedTaskModal"
+         tabindex="-1"
+         aria-labelledby="plannedTaskModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="plannedTaskModalLabel">Planned Task Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Task:</dt>
+                        <dd class="col-sm-8" id="plannedTaskTitle"></dd>
+                        <dt class="col-sm-4">Subtask:</dt>
+                        <dd class="col-sm-8" id="plannedTaskSubtask"></dd>
+                        <dt class="col-sm-4">Planned Hours:</dt>
+                        <dd class="col-sm-8" id="plannedTaskHours"></dd>
+                        <dt class="col-sm-4">Date:</dt>
+                        <dd class="col-sm-8" id="plannedTaskDate"></dd>
+                    </dl>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- FullCalendar & jQuery -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="~/js/Calendar/availability.js"></script>

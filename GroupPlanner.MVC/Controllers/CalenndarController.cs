@@ -15,13 +15,13 @@ using System.Runtime.CompilerServices;
 namespace GroupPlanner.MVC.Controllers
 {
     [Authorize]
-    public class DailyAvailabilityController : Controller
+    public class CalendarController : Controller
     {
         private readonly IAlgorithmResultRepository _algorithmResultRepository;
         private readonly IDailyAvailabilityRepository _repository;
         private readonly IUserContext _userContext;
 
-        public DailyAvailabilityController(IAlgorithmResultRepository algorithmResultRepository, IDailyAvailabilityRepository repository, IUserContext userContext)
+        public CalendarController(IAlgorithmResultRepository algorithmResultRepository, IDailyAvailabilityRepository repository, IUserContext userContext)
         {
             _algorithmResultRepository = algorithmResultRepository;
             _repository = repository;
@@ -78,8 +78,8 @@ namespace GroupPlanner.MVC.Controllers
             var result = availabilities.Select(x => new DailyAvailabilityDto
             {
                 Id = x.Id,
-                Date = x.Date, // Standaryzowany format ISO
-                AvailableHours = x.AvailableHours      // double zostanie poprawnie zserializowany z kropką
+                Date = x.Date, 
+                AvailableHours = x.AvailableHours      
             });
 
             return Json(result);
@@ -174,7 +174,7 @@ namespace GroupPlanner.MVC.Controllers
                     {
                         subtaskDescription = g.Key.SubtaskDescription,
                         hours = g.Sum(x => x.Hours),
-                        isPlanned = true // <- DODAJ TO
+                        isPlanned = true 
                     }
                 })
                 .ToList();

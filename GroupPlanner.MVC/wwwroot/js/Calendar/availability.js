@@ -46,7 +46,7 @@
     // funkcja do pobrania dostępności
     function fetchAvailabilities(fetchInfo, successCallback, failureCallback) {
         $.ajax({
-            url: '/DailyAvailability/GetAvailabilities',
+            url: '/Calendar/GetAvailabilities',
             type: 'GET',
             success: function (data) {
                 const events = data.map(function (availability) {
@@ -77,7 +77,7 @@
         const hours = $('#availableHours').val();
         const data = { id: parseInt(id) || 0, date: date, availableHours: parseFloat(hours) };
 
-        const url = id ? '/DailyAvailability/UpdateAvailability' : '/DailyAvailability/SaveAvailability';
+        const url = id ? '/Calendar/UpdateAvailability' : '/Calendar/SaveAvailability';
         $.ajax({
             url: url,
             method: 'POST',
@@ -95,7 +95,7 @@
         const id = $('#availabilityId').val();
         if (id) {
             $.ajax({
-                url: '/DailyAvailability/DeleteAvailability',
+                url: '/Calendar/DeleteAvailability',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(parseInt(id)),
@@ -109,14 +109,14 @@
 
     // załaduj algorytmy do selecta
     $.ajax({
-        url: '/DailyAvailability/GetAlgorithmResults',
+        url: '/Calendar/GetAlgorithmResults',
         method: 'GET',
         success: function (data) {
             const select = $('#algorithmSelect');
             select.empty();
             select.append('<option value="">availabilities</option>');
             data.forEach(r => {
-                const dt = new Date(r.created);
+                const dt = new Date(r.created + 'Z');
                 const formattedDate = dt.toLocaleString('pl-PL', {
                     day: '2-digit',
                     month: '2-digit',
@@ -142,7 +142,7 @@
 
         if (selectedResultId) {
             calendar.addEventSource({
-                url: '/DailyAvailability/GetPlannedEntriesForResult',
+                url: '/Calendar/GetPlannedEntriesForResult',
                 method: 'GET',
                 extraParams: { resultId: selectedResultId },
                 color: '#FF9800',
