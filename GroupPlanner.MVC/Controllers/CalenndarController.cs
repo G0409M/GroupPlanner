@@ -18,11 +18,13 @@ namespace GroupPlanner.MVC.Controllers
     public class CalendarController : Controller
     {
         private readonly IAlgorithmResultRepository _algorithmResultRepository;
+        private readonly ITaskRepository _taskRepository;
         private readonly IDailyAvailabilityRepository _repository;
         private readonly IUserContext _userContext;
 
-        public CalendarController(IAlgorithmResultRepository algorithmResultRepository, IDailyAvailabilityRepository repository, IUserContext userContext)
+        public CalendarController(IAlgorithmResultRepository algorithmResultRepository, ITaskRepository taskRepository, IDailyAvailabilityRepository repository, IUserContext userContext)
         {
+            _taskRepository = taskRepository;
             _algorithmResultRepository = algorithmResultRepository;
             _repository = repository;
             _userContext = userContext;
@@ -158,29 +160,35 @@ namespace GroupPlanner.MVC.Controllers
 
             // Rozpakuj JSON z ResultData
             var schedule = JsonConvert.DeserializeObject<List<ScheduleEntryDto>>(result.ResultData);
-
             if (schedule == null)
                 return Json(new List<object>());
 
-            // Przekształć na eventy dla FullCalendar
+            // pobierz słownik nazw tasków użytkownika
+            var tasks = await _taskRepository.GetAllByUserId(user.Id);
+            var taskNameMap = tasks.ToDictionary(t => t.EncodedName, t => t.Name);
+
+            // przekształć na eventy dla FullCalendar
             var grouped = schedule
-                .GroupBy(s => new { s.Date, s.SubtaskDescription })
+                .GroupBy(s => new { s.Date, s.SubtaskDescription, s.Subtask.TaskEncodedName })
                 .Select(g => new
                 {
-                    title = $"{g.Key.SubtaskDescription} - {g.Sum(x => x.Hours)}h",
+                    title = $"{taskNameMap.GetValueOrDefault(g.Key.TaskEncodedName)} - {g.Sum(x => x.Hours)}h",
                     start = g.Key.Date.ToString("yyyy-MM-dd"),
-                    color = "#FF9800",
+                    color = "#FF9800", // default, nadpiszemy w JS
                     extendedProps = new
                     {
                         subtaskDescription = g.Key.SubtaskDescription,
                         hours = g.Sum(x => x.Hours),
-                        isPlanned = true 
+                        isPlanned = true,
+                        taskEncodedName = g.Key.TaskEncodedName,
+                        taskName = taskNameMap.GetValueOrDefault(g.Key.TaskEncodedName) ?? "(Unknown Task)"
                     }
                 })
                 .ToList();
 
             return Json(grouped);
         }
+
 
 
 
