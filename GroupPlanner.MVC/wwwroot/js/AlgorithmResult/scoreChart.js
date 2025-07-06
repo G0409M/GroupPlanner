@@ -3,6 +3,7 @@
     if (!ctx) return;
 
     const scoreData = JSON.parse(scoreHistoryJson);
+    if (!scoreData.length) return;
 
     const dataMin = Math.min(...scoreData);
     const dataMax = Math.max(...scoreData);
@@ -14,14 +15,14 @@
     const minY = dataMin - margin;
     const maxY = dataMax + margin;
 
-    let decimalPlaces = 7;
+    const decimalPlaces = 2;
 
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: scoreData.map((_, i) => i + 1),
+            labels: scoreData.map((_, i) => `Iter ${i + 1}`),
             datasets: [{
-                label: 'Funkcja celu',
+                label: 'Objective Function',
                 data: scoreData,
                 borderWidth: 2,
                 pointRadius: 1,
@@ -41,13 +42,13 @@
                 },
                 title: {
                     display: true,
-                    text: 'Funkcja celu (Score w kolejnych iteracjach)',
+                    text: 'Objective Function over Iterations',
                     font: { size: 18 }
                 },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
-                            return `Funkcja celu: ${context.parsed.y.toFixed(decimalPlaces)}`;
+                            return `Objective: ${context.parsed.y.toFixed(decimalPlaces)}`;
                         }
                     }
                 }
@@ -56,20 +57,19 @@
                 x: {
                     title: {
                         display: true,
-                        text: 'Iteracja',
+                        text: 'Iteration',
                         font: { size: 14 }
                     },
                     ticks: {
-                        autoSkip: true,
-                        maxTicksLimit: 20,
-                        font: { size: 12 }
+                        font: { size: 12 },
+                        callback: value => `${value}`
                     },
                     grid: { display: false }
                 },
                 y: {
                     title: {
                         display: true,
-                        text: 'Wartość funkcji celu',
+                        text: 'Objective Value',
                         font: { size: 14 }
                     },
                     suggestedMin: minY,

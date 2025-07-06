@@ -23,13 +23,13 @@ namespace GroupPlanner.Infrastructure.Seeders
                     var T1 = new Domain.Entities.Task()
                     {
                         Name = "Projekt z Ekonometrii",
-                      TaskType = Domain.Entities.TaskType.Zadanie,
+                        TaskType = Domain.Entities.TaskType.Task,
                         Details = new Domain.Entities.TaskDetails()
-                      {
-                          Description= "Projekt zaliczeniowy",
-                          Deadline = DateTime.UtcNow.AddDays(10)
-                      },
-                        ProgressStatus = Domain.Entities.ProgressStatus.Nierozpoczete
+                        {
+                            Description = "Projekt zaliczeniowy",
+                            Deadline = DateTime.UtcNow.AddDays(10)
+                        },
+                        ProgressStatus = Domain.Entities.ProgressStatus.NotStarted
                     };
 
                     T1.EncodeName();

@@ -1,39 +1,31 @@
-﻿$(document).ready(function () {
-    // Funkcja do załadowania subtasks
-    LoadSubtasks();
+﻿(function ($) {
+    $(function () {
+        const modal = $('#createSubtaskModal');
+        if (!modal.length) return;
 
-    // Pobierz deadline głównego zadania
-    const taskDeadline = new Date($("#createSubtaskModal input[name='Deadline']").data("task-deadline"));
+        modal.find('form').on('submit', function (e) {
+            e.preventDefault();
+            const form = $(this);
 
-    // Obsługa zdarzenia submit dla formularza tworzenia subtasku
-    $("#createSubtaskModal form").submit(function (event) {
-        event.preventDefault();
-
-        $.ajax({
-            url: $(this).attr('action'),
-            type: $(this).attr('method'),
-            data: $(this).serialize(),
-            success: function (data) {
-                toastr["success"]("Created subtask.");
-                LoadSubtasks();
-            },
-            error: function (xhr) {
-                let errorMessage = "Something went wrong";
-
-                // Sprawdzamy, czy odpowiedź jest w formacie JSON
-                try {
-                    const responseJson = JSON.parse(xhr.responseText);
-                    if (responseJson.Deadline && responseJson.Deadline.length > 0) {
-                        errorMessage = responseJson.Deadline[0]; // Wyciągamy pierwszy komunikat błędu dla Deadline
-                    }
-                } catch (e) {
-                    console.error("Error parsing JSON response:", e);
-                }
-
-                toastr["error"](errorMessage); // Wyświetlenie tylko komunikatu
-            }
+            $.ajax({
+                url: form.attr('action'),
+                type: form.attr('method'),
+                data: form.serialize()
+            })
+                .done(() => {
+                    toastr.success("Created subtask.");
+                    if (typeof LoadSubtasks === 'function') LoadSubtasks();
+                })
+                .fail(xhr => {
+                    let msg = "Something went wrong";
+                    try {
+                        const err = JSON.parse(xhr.responseText);
+                        if (err.Deadline && err.Deadline.length) {
+                            msg = err.Deadline[0];
+                        }
+                    } catch { }
+                    toastr.error(msg);
+                });
         });
     });
-
-
-});
+})(jQuery);

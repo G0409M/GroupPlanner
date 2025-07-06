@@ -2,9 +2,7 @@
     const ctx = document.getElementById('availabilityChart').getContext('2d');
     const tableBody = document.querySelector('#dataTable tbody');
     let chart;
-    const errorMessage = document.createElement('div');
-    errorMessage.id = 'error-message';
-    document.body.appendChild(errorMessage);
+    const errorMessage = document.getElementById('error-message');
 
     function updateChart(data) {
         const labels = data.map(item =>
@@ -36,6 +34,9 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: 10
+                },
                 plugins: {
                     legend: {
                         display: false
@@ -100,19 +101,18 @@
 
                 if (aggregatedData.length === 0) {
                     errorMessage.textContent = 'No data available for the selected date range.';
+                    errorMessage.classList.remove('d-none');
                 } else {
-                    errorMessage.textContent = '';
+                    errorMessage.classList.add('d-none');
                     updateChart(aggregatedData);
                     updateTable(aggregatedData);
                 }
             })
             .catch(() => {
                 errorMessage.textContent = 'An error occurred while fetching data.';
+                errorMessage.classList.remove('d-none');
             });
     }
-
-
-
 
     const today = new Date();
     const fiveDaysAgo = new Date();

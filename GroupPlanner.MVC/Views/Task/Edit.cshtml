@@ -1,75 +1,157 @@
 ﻿@using GroupPlanner.Application.Task
 @model TaskDto
 @using GroupPlanner.Application.Subtask
+
 @{
-    ViewData["Title"] = "Edit";
+    ViewData["Title"] = "Edit Task";
 }
 
-<h1>Edit @Model.Name</h1>
+<!-- Page header -->
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-pencil-square display-4 text-warning me-3"></i>
+        <div>
+            <h1 class="mb-0">Edit “@Model.Name”</h1>
+            <small class="text-muted">Modify the task’s properties below</small>
+        </div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i> Back to List
+    </a>
+</div>
 
-<hr />
 <div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-            <div class="form-group m-3">
-                <label class="control-label" asp-for="TaskType">TaskType</label>
-                <select class="form-control" asp-for="TaskType">
-                    <option value="Projekt">Projekt</option>
-                    <option value="Zadanie">Zadanie</option>
-                    <option value="Spotkanie">Spotkanie</option>
-                    <option value="Inne">Inne</option>
-                </select>
-                <span asp-validation-for="TaskType" class="text-danger"></span>
+    <!-- Left column: Task Settings -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-warning text-white">
+                <h5 class="card-title mb-0">Task Settings</h5>
             </div>
+            <div class="card-body">
+                <form asp-action="Edit" asp-route-encodedName="@Model.EncodedName" method="post" novalidate>
+                    <input type="hidden" asp-for="EncodedName" />
 
-            <div class="form-group m-3">
-                <label asp-for="Description" class="control-label"></label>
-                <input asp-for="Description" class="form-control" />
-                <span asp-validation-for="Description" class="text-danger"></span>
-            </div>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
-            <div class="form-group m-3">
-                <label asp-for="Deadline" class="control-label"></label>
-                <input asp-for="Deadline" class="form-control" />
-                <span asp-validation-for="Deadline" class="text-danger"></span>
-            </div>
+                    <!-- Name -->
+                    <div class="mb-3">
+                        <input type="hidden" asp-for="Name" class="form-control" />
+                        
+                    </div>
 
-            <div class="form-group m-3">
-                <label asp-for="ProgressStatus" class="control-label">Progress Status</label>
-                <select asp-for="ProgressStatus" class="form-control">
-                    <option value="Nierozpoczete">Nierozpoczęte</option>
-                    <option value="Wtrakcie">W trakcie</option>
-                    <option value="Ukonczone">Ukończone</option>
-                </select>
-                <span asp-validation-for="ProgressStatus" class="text-danger"></span>
-            </div>
+                    <!-- Task Type -->
+                    <div class="mb-3">
+                        <label asp-for="TaskType" class="form-label">Type</label>
+                        <select asp-for="TaskType" class="form-select">
+                            <option value="Project">Project</option>
+                            <option value="Task">Task</option>
+                            <option value="AdditionalTask">Additional Task</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <span asp-validation-for="TaskType" class="text-danger"></span>
+                    </div>
 
-            <div class="form-group m-3">
-                <input type="submit" value="Save" class="btn btn-primary" />
+                    <!-- Priority -->
+                    <div class="mb-3">
+                        <label asp-for="Priority" class="form-label">Priority</label>
+                        <select asp-for="Priority" class="form-select">
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                        <span asp-validation-for="Priority" class="text-danger"></span>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">Description</label>
+                        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <!-- Deadline -->
+                    <div class="mb-3">
+                        <label asp-for="Deadline" class="form-label">Deadline</label>
+                        <input asp-for="Deadline" type="date" class="form-control" />
+                        <span asp-validation-for="Deadline" class="text-danger"></span>
+                    </div>
+
+                    <!-- Progress Status -->
+                    <div class="mb-3">
+                        <label asp-for="ProgressStatus" class="form-label">Status</label>
+                        <select asp-for="ProgressStatus" class="form-select">
+                            <option value="NotStarted">Not Started</option>
+                            <option value="InProgress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                        <span asp-validation-for="ProgressStatus" class="text-danger"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-save me-1"></i> Save Changes
+                    </button>
+                </form>
             </div>
-        </form>
+        </div>
+    </div>
+
+    <!-- Right column: Task Overview + Add Subtask -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Task Overview</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item"><strong>Name:</strong> @Model.Name</li>
+                <li class="list-group-item">
+                    <strong>Deadline:</strong>
+                    <span class="ms-2">
+                        @(Model.Deadline.HasValue
+                            ? Model.Deadline.Value.ToString("yyyy-MM-dd")
+                            : "<em>None</em>")
+                    </span>
+                </li>
+                <li class="list-group-item">
+                    <strong>Type:</strong>
+                    <span class="badge bg-secondary ms-2">@Model.TaskType</span>
+                </li>
+                <li class="list-group-item">
+                    <strong>Priority:</strong>
+                    <span class="badge bg-secondary ms-2">@Model.Priority</span>
+                </li>
+                <li class="list-group-item">
+                    <strong>Status:</strong>
+                    <span class="badge bg-info text-dark ms-2">@Model.ProgressStatus</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Add Subtask</h5>
+            </div>
+            <div class="card-body">
+                <partial name="_CreateSubtask"
+                         model="new SubtaskDto { TaskEncodedName = Model.EncodedName, TaskDeadline = Model.Deadline }" />
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="m-3">
-    <!-- Wyświetlanie deadline zadania nadrzędnego -->
-    <p><strong>Deadline zadania:</strong> @Model.Deadline?.ToString("yyyy-MM-dd")</p>
-
-    <!-- Formularz tworzenia podzadania -->
-    <partial name="_CreateSubtask" model="new SubtaskDto { TaskEncodedName = Model.EncodedName, TaskDeadline = Model.Deadline }" />
-
-    <a asp-action="Index" class="btn btn-secondary">Back to list</a>
-</div>
-
-<h3>Subtasks:</h3>
-<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName">
+<!-- Subtasks list -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="card-title mb-0">Subtasks</h5>
+    </div>
+    <div class="card-body">
+        <div id="subtasks" class="row g-3" data-encoded-name="@Model.EncodedName">
+            <!-- Edit.js dynamic subtasks here -->
+        </div>
+    </div>
 </div>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    <partial name="_ValidationScriptsPartial" />
     <script src="~/js/Task/Edit.js"></script>
 }

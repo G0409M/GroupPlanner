@@ -2,49 +2,94 @@
 @model TaskDto
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Task Details";
 }
 
-<div class="row">
-    <!-- Kolumna szczegółów zadania (65% szerokości) -->
-    <div class="col-md-8">
-        <h1>@Model.Name Details</h1>
-        <hr />
-        <dl class="bg-light p-3 rounded">
-            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.Deadline)</dt>
-            <dd>@Html.DisplayFor(model => model.Deadline)</dd>
-            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.TaskType)</dt>
-            <dd>@Html.DisplayFor(model => model.TaskType)</dd>
-            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.Description)</dt>
-            <dd>@Html.DisplayFor(model => model.Description)</dd>
-            <dt class="font-weight-bold">@Html.DisplayNameFor(model => model.ProgressStatus)</dt>
-            <dd>@Html.DisplayFor(model => model.ProgressStatus)</dd>
-        </dl>
+<!-- Page header -->
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="mb-1">@Model.Name</h1>
+        <small class="text-muted">Here’s everything you need to know about this task</small>
     </div>
-
-    <!-- Kolumna wykresu (35% szerokości) -->
-    <div class="col-md-4 text-center">
-        <h3>Estimated Time for Subtasks:</h3>
-        <canvas id="estimatedTimeChart" width="250" height="250"></canvas> <!-- Zmniejszenie rozmiaru wykresu -->
+    <div>
+        <a asp-action="Index" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to List
+        </a>
+        @if (Model.IsEditable)
+        {
+            <a asp-action="Edit" asp-route-encodedName="@Model.EncodedName" class="btn btn-primary">
+                <i class="bi bi-pencil-square me-1"></i> Edit
+            </a>
+        }
     </div>
 </div>
 
-<!-- Sekcja subtasków poniżej szczegółów i wykresu -->
-<h3>Subtasks:</h3>
-<div id="subtasks" class="row" data-encoded-name="@Model.EncodedName"></div>
+<div class="row mb-4">
+    <!-- Task Information -->
+    <div class="col-lg-7 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Task Information</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">
+                    <strong>Deadline:</strong>
+                    <span class="ms-2">
+                        @(Model.Deadline.HasValue
+                            ? Model.Deadline.Value.ToString("yyyy-MM-dd")
+                            : "No deadline")
+                    </span>
+                </li>
+                <li class="list-group-item">
+                    <strong>Type:</strong>
+                    <span class="badge bg-secondary ms-2">@Model.TaskType</span>
+                </li>
+                <li class="list-group-item">
+                    <strong>Priority:</strong>
+                    <span class="badge bg-primary ms-2">@Model.Priority</span>
+                </li>
+                <li class="list-group-item">
+                    <strong>Description:</strong>
+                    <p class="mb-0 ms-2">@Model.Description</p>
+                </li>
+                <li class="list-group-item">
+                    <strong>Status:</strong>
+                    <span class="badge bg-warning text-dark ms-2">@Model.ProgressStatus</span>
+                </li>
+            </ul>
+        </div>
+    </div>
 
-<div>
-    @if (Model.IsEditable)
-    {
-        <a class="btn btn-outline-secondary" asp-controller="Task" asp-action="Edit" asp-route-encodedName="@Model.EncodedName">Edit</a>
-    }
-    <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+    <!-- Subtask Summary (chart) -->
+    <div class="col-lg-5 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Subtask Summary</h5>
+            </div>
+            <div class="card-body p-3" style="position: relative; height:250px;">
+                <canvas id="estimatedTimeChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subtasks list -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Subtasks</h5>
+            </div>
+            <div class="card-body">
+                <div id="subtasks" class="row g-3" data-encoded-name="@Model.EncodedName">
+                    <!-- tutaj Details.js wrzuca pojedyncze karty podzadań -->
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
-    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <script src="~/js/Task/Details.js"></script> 
+    <script src="~/js/Task/Details.js"></script>
 }
-

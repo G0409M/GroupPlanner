@@ -1,68 +1,90 @@
-﻿const RenderSubtasks = (subtasks, container) => {
-    container.empty();
+﻿(function ($) {
+    // status map
+    const statusMap = { 0: "Not Started", 1: "In Progress", 2: "Completed" };
 
-    const statusMap = {
-        0: "Nierozpoczęte",
-        1: "W trakcie",
-        2: "Ukończone"
-    };
+    function renderSubtasks(subtasks, container) {
+        container.empty();
+        if (!subtasks.length) {
+            container.append(`
+        <div class="alert alert-info text-center">
+          No subtasks for this task.
+        </div>
+      `);
+            return;
+        }
 
-    for (const subtask of subtasks) {
-        const statusText = statusMap[subtask.progressStatus] || "Nieznany status"; 
+        
+        const row = $('<div class="row gy-4"></div>');
+        subtasks.forEach(s => {
+            const statusText = statusMap[s.progressStatus] || "Unknown";
+            const badge = statusText === 'Completed' ? 'success'
+                : statusText === 'In Progress' ? 'warning'
+                    : 'secondary';
+            const hrText = s.estimatedTime === 1 ? 'hour' : 'hours';
 
-        const hourText = subtask.estimatedTime === 1 ? "hour" : "hours";
+            row.append(`
+        <div class="col-sm-6 col-md-4 mb-4">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title">${s.description}</h5>
+              <p class="mb-2">
+                <span class="badge bg-${badge}">${statusText}</span>
+              </p>
+              <p class="text-muted mb-4">
+                <i class="bi bi-clock me-1"></i>${s.estimatedTime} ${hrText}
+              </p>
+              <div class="mt-auto text-end">
+                <button class="btn btn-outline-danger btn-sm delete-subtask"
+                        data-subtask-id="${s.id}">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `);
+        });
+        container.append(row);
 
-        container.append(
-            `<div class="card border-secondary mb-3" style="max-width: 18rem;">
-                <div class="card-body">
-                    <p class="card-text text-center" style="font-weight: bold">${subtask.description}</p>
-                    <hr style="border-top: 1px solid #ccc;"> <!-- Dodanie linii oddzielającej -->
-                    <p class="card-text"><strong>Status:</strong> ${statusText}</p>
-                    <p class="card-text"><strong>Estimated Time:</strong> ${subtask.estimatedTime} ${hourText}</p>
-                    <button class="btn btn-danger btn-sm delete-subtask" data-subtask-id="${subtask.id}">Usuń</button>
-                </div>
-            </div>`
-        );
+        // podpinamy handler
+        container.find('.delete-subtask')
+            .off('click')
+            .on('click', function () {
+                deleteSubtask($(this).data('subtaskId'));
+            });
     }
-    container.find(".delete-subtask").click(function () {
-        const subtaskId = $(this).data("subtask-id");
-        DeleteSubtask(subtaskId);
-    });
-}
 
-const LoadSubtasks = () => {
-    const container = $("#subtasks");
-    const taskEncodedName = container.data("encodedName");
+    function loadSubtasks() {
+        const container = $('#subtasks');
+        if (!container.length) return;
+        const name = container.data('encodedName');
+        $.get(`/Task/${name}/Subtask`)
+            .done(data => renderSubtasks(data, container))
+            .fail(() => toastr.error("Failed to load subtasks"));
+    }
 
-    $.ajax({
-        url: `/Task/${taskEncodedName}/Subtask`,
-        type: 'get',
-        success: function (data) {
-            if (!data.length) {
-                container.html("There are no subtasks for this task.");
-            } else {
-                RenderSubtasks(data, container);
-            }
-        },
-        error: function () {
-            toastr["error"]("Something went wrong");
-        }
-    });
-}
-const DeleteSubtask = (subtaskId) => {
-    const container = $("#subtasks");
-    const taskEncodedName = container.data("encodedName");
+    function deleteSubtask(id) {
+        const container = $('#subtasks');
+        const name = container.data('encodedName');
+        $.ajax({
+            url: `/Task/${name}/Subtask/${id}`,
+            type: 'DELETE'
+        })
+            .done(() => {
+                toastr.success("Subtask deleted successfully");
+                loadSubtasks();
+                // wywołaj chart tylko jeśli istnieje
+                if (typeof loadEstimatedTimeChart === 'function') {
+                    loadEstimatedTimeChart();
+                }
+            })
+            .fail(() => toastr.error("Failed to delete subtask"));
+    }
 
-    $.ajax({
-        url: `/Task/${taskEncodedName}/Subtask/${subtaskId}`,
-        type: 'DELETE',
-        success: function () {
-            toastr["success"]("Subtask deleted successfully");
-            LoadSubtasks(); // Ponownie ładujemy listę podzadań
-            LoadEstimatedTimeChart(); // Odświeżamy wykres
-        },
-        error: function () {
-            toastr["error"]("Failed to delete subtask");
-        }
+    // expose and init
+    $(document).ready(function () {
+        window.LoadSubtasks = loadSubtasks;
+        window.DeleteSubtask = deleteSubtask;
+        loadSubtasks();
     });
-}
+})(jQuery);

@@ -11,7 +11,7 @@ namespace GroupPlanner.Application.Subtask
     {
         public int Id { get; set; }
         public string Description { get; set; } = default!;
-        public ProgressStatus ProgressStatus { get; set; } = ProgressStatus.Nierozpoczete;
+        public ProgressStatus ProgressStatus { get; set; } = ProgressStatus.NotStarted;
         public int EstimatedTime { get; set; } = 1;
         public string? TaskEncodedName { get; set; }
         public DateTime? TaskDeadline { get; set; }

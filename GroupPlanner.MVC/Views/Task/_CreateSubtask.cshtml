@@ -2,64 +2,80 @@
 @model SubtaskDto
 
 @{
-    var createSubtask = ViewData["CreateSubtask"] as SubtaskDto ?? new SubtaskDto();
-
+    // The parent task’s deadline comes in via ViewData
+    var parent = ViewData["CreateSubtask"] as SubtaskDto ?? new SubtaskDto();
 }
 
-<!-- Button trigger modal -->
-<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSubtaskModal">
-    Add Subtask
+<!-- “Add Subtask” button -->
+<button type="button"
+        class="btn btn-success mb-3"
+        data-bs-toggle="modal"
+        data-bs-target="#createSubtaskModal">
+    <i class="bi bi-plus-lg me-1"></i> Add Subtask
 </button>
 
-<!-- Modal -->
+<!-- Create Subtask Modal -->
 <div class="modal fade" id="createSubtaskModal" tabindex="-1" aria-labelledby="createSubtaskModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
 
-            <form asp-action="CreateSubtask">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="createSubtaskModalLabel">Create new subtask</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p><strong>Deadline zadania:</strong> @createSubtask.TaskDeadline?.ToString("yyyy-MM-dd")</p>
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="createSubtaskModalLabel">
+          <i class="bi bi-journal-plus me-1"></i> New Subtask
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
 
-                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+      <form asp-action="CreateSubtask" novalidate>
+        <div class="modal-body">
+          <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
-                    <input asp-for="TaskEncodedName" class="form-control" type="hidden" />
+          <input asp-for="TaskEncodedName" type="hidden" />
 
-                    <div class="form-group">
-                        <label asp-for="Description" class="control-label"></label>
-                        <input asp-for="Description" class="form-control" />
-                        <span asp-validation-for="Description" class="text-danger"></span>
-                    </div>
+          
 
-                    <div class="form-group">
-                        <label asp-for="ProgressStatus" class="control-label">Progress Status</label>
-                        <select asp-for="ProgressStatus" class="form-control">
-                            <option value="Nierozpoczete">Nierozpoczęte</option>
-                            <option value="Wtrakcie">W trakcie</option>
-                            <option value="Ukonczone">Ukończone</option>
-                        </select>
-                        <span asp-validation-for="ProgressStatus" class="text-danger"></span>
-                    </div>
-                    <div class="form-group">
-                        <label asp-for="EstimatedTime" class="control-label">Estimated Time (hours)</label>
-                        <input asp-for="EstimatedTime" class="form-control" type="number" min="0" step="1" />
-                        <span asp-validation-for="EstimatedTime" class="text-danger"></span>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <input type="submit" value="Create" class="btn btn-primary">
-                </div>
-            </form>
+          <div class="mb-3">
+            <label asp-for="Description" class="form-label">Description</label>
+            <input asp-for="Description" class="form-control" placeholder="Enter subtask description" />
+            <span asp-validation-for="Description" class="text-danger small"></span>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="EstimatedTime" class="form-label">Estimated Time (hours)</label>
+            <input asp-for="EstimatedTime"
+                   type="number"
+                   min="1"
+                   step="1"
+                   class="form-control"
+                   placeholder="e.g. 2" />
+            <span asp-validation-for="EstimatedTime" class="text-danger small"></span>
+          </div>
+
+          <div class="mb-3">
+            <label asp-for="ProgressStatus" class="form-label">Status</label>
+            <select asp-for="ProgressStatus" class="form-select">
+              <option value="NotStarted">Not Started</option>
+              <option value="InProgress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+            <span asp-validation-for="ProgressStatus" class="text-danger small"></span>
+          </div>
         </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-circle me-1"></i> Cancel
+          </button>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-lg me-1"></i> Create Subtask
+          </button>
+        </div>
+      </form>
+
     </div>
+  </div>
 </div>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+      <partial name="_ValidationScriptsPartial" />
 }

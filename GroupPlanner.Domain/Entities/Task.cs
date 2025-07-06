@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,25 +10,46 @@ namespace GroupPlanner.Domain.Entities
 {
     public enum TaskType
     {
-        Projekt,
-        Zadanie,
-        ZadanieDodatkowe,
-        Spotkanie,
-        Inne
+        [Display(Name = "Project")]
+        Project,
+
+        [Display(Name = "Task")]
+        Task,
+
+        [Display(Name = "Additional Task")]
+        AdditionalTask,
+
+        [Display(Name = "Other")]
+        Other
     }
+
     public enum ProgressStatus
     {
-        Nierozpoczete,  
-        WTrakcie,  
-        Ukonczone    
+        [Display(Name = "Not Started")]
+        NotStarted,
+
+        [Display(Name = "In Progress")]
+        InProgress,
+
+        [Display(Name = "Completed")]
+        Completed
     }
+
     public enum TaskPriority
     {
-        Nieważne = 1,
-        MałoWażne = 2,
-        Ważne = 3,
-        BardzoWażne = 4
+        [Display(Name = "Low")]
+        Low = 1,
+
+        [Display(Name = "Medium")]
+        Medium = 2,
+
+        [Display(Name = "High")]
+        High = 3,
+
+        [Display(Name = "Critical")]
+        Critical = 4
     }
+
 
     public class Task
     {
@@ -36,11 +58,11 @@ namespace GroupPlanner.Domain.Entities
         public TaskDetails Details { get; set; } = new TaskDetails();
         public TaskType TaskType { get; set; } = default!;
 
-        public TaskPriority Priority { get; set; } = TaskPriority.Ważne;
+        public TaskPriority Priority { get; set; } = TaskPriority.Medium;
 
         public string EncodedName { get; private set; } = default!;
 
-        public ProgressStatus ProgressStatus { get; set; } = ProgressStatus.Nierozpoczete;
+        public ProgressStatus ProgressStatus { get; set; } = ProgressStatus.NotStarted;
         public string? CreatedById { get; set; }
         public IdentityUser? CreatedBy { get; set; }
         public List<Subtask> Subtasks { get; set; } = new (); 

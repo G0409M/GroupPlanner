@@ -1,7 +1,9 @@
-﻿@model GroupPlanner.Application.AlgorithmResult.AlgorithmResultDetailsDto
+﻿@using GroupPlanner.Application.AlgorithmResult
 @using GroupPlanner.Application.Algorithms
+@model AlgorithmResultDetailsDto
 
 @{
+    ViewData["Title"] = "Algorithm Result Details";
     var schedule = ViewBag.Schedule as List<ScheduleEntryDto>;
 
     var taskNames = schedule.Select(s => s.TaskEncodedName).Distinct().ToList();
@@ -12,145 +14,128 @@
         int hue = (i * 360 / taskCount);
         taskColors[taskNames[i]] = $"hsl({hue}, 60%, 85%)";
     }
+
+    var allMetrics = new[] {
+        new { Title = "Total Planned Hours", Value = ViewBag.TotalHoursPlanned },
+        new { Title = "Hours Overdue", Value = ViewBag.HoursLate },
+        new { Title = "% Availability Used", Value = ViewBag.UsagePercent.ToString("F2") + " %" },
+        new { Title = "Order Violations", Value = ViewBag.OrderViolations },
+        new { Title = "Avg. Usage per Day", Value = ViewBag.AvgUsagePerDay.ToString("F2") + " %" },
+        new { Title = "Objective Function", Value = ViewBag.ResultValue.ToString("F2") },
+        new { Title = "Unsplit Subtasks", Value = ViewBag.NonSplitSubtasks },
+        new { Title = "Avg. Days per Subtask", Value = ViewBag.AvgDaysPerSubtask },
+        new { Title = "Avg. Block Size", Value = ViewBag.AvgBlockSize },
+        new { Title = "Overbooked Days", Value = ViewBag.OverbookedDays }
+    };
 }
 
-<h2>Szczegóły wyniku algorytmu</h2>
+<!-- Header -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+        <h1 class="mb-1">Algorithm Result Details</h1>
+        <small class="text-muted">Overview of schedule and key metrics</small>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i> Back to List
+    </a>
+</div>
 
-<p>
-    <strong>Algorytm:</strong> @ViewBag.Algorithm <br />
-    <strong>Wynik:</strong> @ViewBag.ResultValue.ToString("F2") <br />
-    <strong>Czas działania:</strong> @ViewBag.Duration
-</p>
-
-<div class="row mb-4">
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Zaplanowane godziny</h6>
-            <p class="h5">
-                @ViewBag.TotalHoursPlanned
-                <span class="small text-muted">(@ViewBag.TotalHoursPlannedPercent %)</span>
-            </p>
+<!-- Top Row: Summary + Metrics -->
+<div class="row g-3 mb-4">
+    <!-- Summary Card -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Summary</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item"><strong>Algorithm:</strong> @ViewBag.Algorithm</li>
+                <li class="list-group-item"><strong>Result:</strong> @ViewBag.ResultValue.ToString("F2")</li>
+                <li class="list-group-item"><strong>Time:</strong> @ViewBag.Duration</li>
+            </ul>
         </div>
     </div>
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Godziny po terminie</h6>
-            <p class="h5">
-                @ViewBag.HoursLate
-                <span class="small text-muted">(@ViewBag.HoursLatePercent %)</span>
-            </p>
-        </div>
-    </div>
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">% wykorzystania dostępności</h6>
-            <p class="h5">@ViewBag.UsagePercent %</p>
-        </div>
-    </div>
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Naruszenia kolejności</h6>
-            <p class="h5">@ViewBag.OrderViolations</p>
-        </div>
-    </div>
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Śr. wykorzystanie dzienne</h6>
-            <p class="h5">@ViewBag.AvgUsagePerDay %</p>
-        </div>
-    </div>
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Wynik funkcji celu</h6>
-            <p class="h5">@ViewBag.ResultValue.ToString("F2")</p>
+    <!-- Metrics Grid -->
+    <div class="col-md-8">
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var m in allMetrics)
+            {
+                <div class="card text-center shadow-sm flex-fill" style="min-width:120px;">
+                    <div class="card-body py-2">
+                        <small class="text-muted d-block mb-1">@m.Title</small>
+                        <strong class="h5 mb-0">@m.Value</strong>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
 
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Podzadania nierozdzielone</h6>
-            <p class="h5">@ViewBag.NonSplitSubtasks</p>
-        </div>
+
+<!-- Schedule Table with Task Colors -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">Schedule Details</h5>
     </div>
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Śr. dni/podzadanie</h6>
-            <p class="h5">@ViewBag.AvgDaysPerSubtask</p>
-        </div>
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Subtask</th>
+                    <th scope="col">Task</th>
+                    <th scope="col">Hours</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in schedule.OrderBy(e => e.Date))
+                {
+                    var bgColor = taskColors[entry.TaskEncodedName];
+                    <tr>
+                        <td style="background-color:@bgColor;">@entry.Date.ToString("yyyy-MM-dd")</td>
+                        <td style="background-color:@bgColor;">@entry.SubtaskDescription</td>
+                        <td style="background-color:@bgColor;">@entry.TaskEncodedName</td>
+                        <td style="background-color:@bgColor;">@entry.Hours</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Śr. blok godzin</h6>
-            <p class="h5">@ViewBag.AvgBlockSize</p>
-        </div>
-    </div>
-
-    <div class="col-md-2">
-        <div class="card p-2 text-center shadow-sm">
-            <h6 class="text-muted">Przekroczenia dni</h6>
-            <p class="h5">@ViewBag.OverbookedDays</p>
-        </div>
-    </div>
-
 </div>
 
-<table class="table table-striped mt-4">
-    <thead>
-        <tr>
-            <th>Data</th>
-            <th>Opis podzadania</th>
-            <th>Zadanie</th>
-            <th>Liczba godzin</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var entry in schedule.OrderBy(e => e.Date))
+<!-- Legend -->
+<div class="mb-4">
+    <h5>Task Color Legend</h5>
+    <ul class="list-inline">
+        @foreach (var kvp in taskColors)
         {
-            var bgColor = taskColors[entry.TaskEncodedName];
-            <tr>
-                <td style="background-color: @bgColor">@entry.Date.ToString("yyyy-MM-dd")</td>
-                <td style="background-color: @bgColor">@entry.SubtaskDescription</td>
-                <td style="background-color: @bgColor">@entry.TaskEncodedName</td>
-                <td style="background-color: @bgColor">@entry.Hours</td>
-            </tr>
+            <li class="list-inline-item me-3">
+                <span style="display:inline-block;width:15px;height:15px;background-color:@kvp.Value;border:1px solid #ccc;"></span>
+                <small class="ms-1">@kvp.Key</small>
+            </li>
         }
-    </tbody>
-</table>
+    </ul>
+</div>
 
-<h5>Legenda kolorów zadań:</h5>
-<ul class="list-unstyled">
-    @foreach (var kvp in taskColors)
-    {
-        <li style="margin-bottom: 5px;">
-            <span style="display: inline-block; width: 20px; height: 20px; background-color: @kvp.Value; border: 1px solid #ccc; margin-right: 10px;"></span>
-            <strong>@kvp.Key</strong>
-        </li>
-    }
-</ul>
 
-<h4>Funkcja celu (Score w kolejnych iteracjach)</h4>
-<canvas id="scoreChart" width="600" height="300"></canvas>
+<!-- Score Progress -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0 text-center">Score Progress</h5>
+    </div>
+    <div class="card-body p-3" style="height:500px;">
+        <canvas id="scoreChart" style="width:100%; height:100%;"></canvas>
+    </div>
+</div>
+
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="~/js/AlgorithmResult/scoreChart.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const scoreHistoryJson = '@Html.Raw(ViewBag.ScoreHistory ?? "[]")';
-            renderScoreChart(scoreHistoryJson);
+        document.addEventListener("DOMContentLoaded", () => {
+            renderScoreChart('@Html.Raw(ViewBag.ScoreHistory ?? "[]")');
         });
     </script>
 }
-
-<a asp-action="Index" class="btn btn-secondary mt-3">Powrót</a>

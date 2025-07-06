@@ -1,0 +1,36 @@
+﻿/* Dopasowujemy nagłówki kart do koloru z Tasks */
+.card-header {
+    background-color: #337ab7; /* zamiast domyślnego .bg-primary */
+    color: #fff;
+    font-weight: 500;
+}
+
+/* Lekki cień i zaokrąglenia jak w Tasks */
+.card {
+    border: none;
+    border-radius: .375rem;
+}
+
+    .card.shadow-sm {
+        box-shadow: 0 1px 2px rgba(0,0,0,.1);
+    }
+
+/* Filtry – zmniejszony input */
+#filterContainer .form-control-sm {
+    width: 110px;
+}
+
+/* Tabela w karcie */
+#dataTable {
+    font-size: .875rem;
+}
+
+    #dataTable th,
+    #dataTable td {
+        vertical-align: middle;
+    }
+
+/* Komunikat o błędzie */
+#error-message {
+    margin-bottom: 1rem;
+}

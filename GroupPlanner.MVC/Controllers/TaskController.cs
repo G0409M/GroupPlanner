@@ -76,13 +76,14 @@ namespace GroupPlanner.MVC.Controllers
             var dto = _mapper.Map<TaskDto>(task);
             return View(dto);
         }
-
         [HttpGet]
         [Route("Task/{encodedName}/Edit")]
+        [Authorize]
         public async Task<IActionResult> Edit(string encodedName)
         {
             var task = await _taskRepository.GetByEncodedName(encodedName);
-            if (task == null) return NotFound();
+            if (task == null)
+                return NotFound();
 
             var user = _userContext.GetCurrentUser();
             if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
@@ -94,28 +95,37 @@ namespace GroupPlanner.MVC.Controllers
 
         [HttpPost]
         [Route("Task/{encodedName}/Edit")]
+        [Authorize]
         public async Task<IActionResult> Edit(string encodedName, TaskDto dto)
         {
             if (!ModelState.IsValid)
+            {
+                
                 return View(dto);
+            }
 
             var task = await _taskRepository.GetByEncodedName(encodedName);
-            if (task == null) return NotFound();
+            if (task == null)
+                return NotFound();
 
             var user = _userContext.GetCurrentUser();
             if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
                 return RedirectToAction("NoAccess", "Home");
 
             task.Name = dto.Name;
-            task.TaskType = dto.TaskType;
             task.Priority = dto.Priority;
+            task.TaskType = dto.TaskType;
             task.ProgressStatus = dto.ProgressStatus;
             task.Details.Description = dto.Description;
             task.Details.Deadline = dto.Deadline;
 
             await _taskRepository.Commit();
-            return RedirectToAction(nameof(Index));
+
+            this.SetNotification("success", $"Task updated: {dto.Name}");
+
+            return RedirectToAction(nameof(Edit), new { encodedName = dto.EncodedName });
         }
+
 
         [HttpGet]
         [Route("Task/{encodedName}/Delete")]

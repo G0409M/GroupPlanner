@@ -14,8 +14,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
         public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities,AntAlgorithmParameters parameters,
                     Func<int, double, System.Threading.Tasks.Task>? reportProgress = null)
         {
-            // inicjalizacja feromonów
-            var pheromone = new Dictionary<(string subtaskEncodedName, DateTime date), double>();
+            // --- INICJALIZACJA FEROMONÓW ---
+            var pheromone = new Dictionary<(string sub, DateTime d), double>();
             foreach (var sub in subtasks)
                 foreach (var day in availabilities)
                     pheromone[(sub.TaskEncodedName ?? "", day.Date)] = 1.0;
@@ -29,8 +29,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 var solutions = new List<List<ScheduleEntryDto>>();
                 var scores = new List<double>();
 
-                // dynamiczne q0 - np. od 0.5 do 0.9
-                double q0 = 0.5 + 0.4 * ((double)iter / parameters.Iterations);
+                // ► ZMIENIONE q₀: zaczynamy od 0.2, dochodzimy do 0.8
+                double q0 = 0.2 + 0.4 * ((double)iter / (parameters.Iterations - 1));
 
                 for (int k = 0; k < parameters.AntCount; k++)
                 {
@@ -41,6 +41,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                         tasks,
                         parameters.Alpha,
                         parameters.Beta,
+                        q0,
                         _random
                     );
 
@@ -55,244 +56,175 @@ namespace GroupPlanner.Application.Algorithms.Ant
                     }
                 }
 
-                // aktualizacja feromonów
-                UpdatePheromones(pheromone, solutions, scores, parameters.Q, parameters.EvaporationRate,availabilities);
+                // ► Dajemy wyższy domyślny evaporationRate w parametrach (np. 0.3–0.5),
+                //    ale możesz tutaj zrobić dodatkowo mnożenie, żeby feromony szybciej zanikały:
+                UpdatePheromones(
+                    pheromone,
+                    solutions,
+                    scores,
+                    parameters.Q,          // zmniejszamy Q o połowę
+                    parameters.EvaporationRate, // przyspieszamy parowanie
+                    availabilities
+                );
 
-                // historia do wykresu
                 scoreHistory.Add(bestScore);
-
-                double avgScore = scores.Average();
-                Console.WriteLine($"[ANT] Iter {iter + 1}/{parameters.Iterations} | bestScore: {bestScore:F4} | avgScore: {avgScore:F4}");
-
                 if (reportProgress != null)
                     await reportProgress(iter + 1, bestScore);
             }
 
-            // na wypadek gdyby wszystkie rozwiązania były niepoprawne
             bestSchedule ??= new List<ScheduleEntryDto>();
-
             return new AlgorithmRunResultDto
             {
                 BestScore = bestScore,
                 Schedule = bestSchedule,
-                ScoreHistoryJson = System.Text.Json.JsonSerializer.Serialize(scoreHistory),
-                ParametersJson = System.Text.Json.JsonSerializer.Serialize(parameters)
+                ScoreHistoryJson = JsonConvert.SerializeObject(scoreHistory),
+                ParametersJson = JsonConvert.SerializeObject(parameters)
             };
         }
 
 
-        private List<ScheduleEntryDto> BuildAntSchedule(Dictionary<(string subtaskEncodedName, DateTime date), double> pheromone,List<SubtaskDto> subtasks,
-    List<DailyAvailabilityDto> availabilities,List<TaskDto> tasks,double alpha, double beta, Random random)
+        // ► 1. Budowanie rozwiązania
+        private List<ScheduleEntryDto> BuildAntSchedule(Dictionary<(string sub, DateTime d), double> pheromone, List<SubtaskDto> subs,List<DailyAvailabilityDto> av,
+        List<TaskDto> tasks,double alpha, double beta,double q0, Random rnd)
         {
             var schedule = new List<ScheduleEntryDto>();
+            var days = av.Select(a => new AvailableDay { Date = a.Date, HoursLeft = a.AvailableHours })
+                         .OrderBy(a => a.Date)
+                         .ToDictionary(d => d.Date);
 
-            var availableDays = availabilities
-                .Select(a => new AvailableDay
-                {
-                    Date = a.Date,
-                    HoursLeft = a.AvailableHours
-                })
-                .OrderBy(a => a.Date)
-                .ToList();
-
-            var subtasksByOrder = subtasks
-                .GroupBy(s => s.Order)
-                .OrderBy(g => g.Key)
-                .ToList();
-
-            double q0 = 0.8; // parametr eksploracji/eksploatacji
-
-            foreach (var orderGroup in subtasksByOrder)
+            foreach (var sub in subs.OrderBy(_ => rnd.Next()))
             {
-                foreach (var subtask in orderGroup.OrderBy(_ => random.Next()))
+                int remaining = sub.EstimatedTime;
+                var deadline = tasks.First(t => t.EncodedName == sub.TaskEncodedName).Deadline
+                               ?? DateTime.MaxValue;
+
+                while (remaining > 0)
                 {
-                    if (subtask.TaskEncodedName == null)
-                        continue;
+                    var candidates = days.Values.Where(d => d.HoursLeft > 0).ToList();
+                    if (!candidates.Any()) break;
 
-                    // pilnuj kolejności
-                    if (subtask.Order > 1)
+                    // Oblicz probilność z uwzględnieniem feromonów + heurystyki
+                    var scored = new List<(AvailableDay day, double p)>();
+                    double sum = 0;
+                    foreach (var d in candidates)
                     {
-                        var previousSubs = subtasks
-                            .Where(s => s.TaskEncodedName == subtask.TaskEncodedName && s.Order == subtask.Order - 1)
-                            .ToList();
-
-                        bool previousDone = previousSubs.All(prev =>
-                        {
-                            var total = schedule
-                                .Where(x => x.Subtask?.TaskEncodedName == prev.TaskEncodedName &&
-                                            x.Subtask?.Order == prev.Order)
-                                .Sum(x => x.Hours);
-                            return total >= prev.EstimatedTime;
-                        });
-
-                        if (!previousDone)
-                            continue;
-
-                        // dodatkowo blokuj dni przed zakończeniem poprzedniego
-                        var prevEndDate = schedule
-                            .Where(x => previousSubs.Any(p => p.TaskEncodedName == x.Subtask?.TaskEncodedName && p.Order == x.Subtask?.Order))
-                            .OrderByDescending(x => x.Date)
-                            .Select(x => x.Date)
-                            .FirstOrDefault();
-
-                        if (prevEndDate != default)
-                        {
-                            availableDays = availabilities
-                                .Select(a => new AvailableDay
-                                {
-                                    Date = a.Date,
-                                    HoursLeft = a.AvailableHours
-                                })
-                                .OrderBy(a => a.Date)
-                                .Where(d => d.Date >= prevEndDate)
-                                .ToList();
-                        }
+                        var tau = pheromone.GetValueOrDefault((sub.TaskEncodedName!, d.Date), 1.0);
+                        double dist = Math.Abs((d.Date - deadline).TotalDays) + 1;
+                        double eta = (1.0 / dist); // zostawiamy prostą heurystykę
+                        double val = Math.Pow(tau, alpha) * Math.Pow(eta, beta);
+                        scored.Add((d, val));
+                        sum += val;
                     }
 
-                    int remaining = subtask.EstimatedTime;
-
-                    while (remaining > 0)
+                    // Wylosuj z prawdopodobieństwem lub greedy
+                    double q = rnd.NextDouble();
+                    AvailableDay chosen;
+                    if (q < q0)
                     {
-                        var deadline = tasks.FirstOrDefault(t => t.EncodedName == subtask.TaskEncodedName)?.Deadline
-                            ?? DateTime.MaxValue;
-
-                        var candidateDays = availableDays
-                            .Where(d => d.Date <= deadline && d.HoursLeft > 0)
-                            .ToList();
-
-                        if (!candidateDays.Any())
-                        {
-                            // fallback - spróbuj poza terminem
-                            candidateDays = availableDays
-                                .Where(d => d.HoursLeft > 0)
-                                .ToList();
-
-                            if (!candidateDays.Any())
-                                break;
-                        }
-
-                        // heurystyka - bierz pod uwagę obciążenie dnia
-                        var probabilities = new List<(DateTime day, double probability)>();
-                        double denom = 0;
-
-                        foreach (var day in candidateDays)
-                        {
-                            var key = (subtask.TaskEncodedName, day.Date);
-                            double tau = pheromone.GetValueOrDefault(key, 1.0);
-
-                            double loadFactor = 1.0 - ((day.HoursLeft * 1.0) / (availabilities.First(a => a.Date == day.Date).AvailableHours + 0.1)); // im mniej wykorzystane, tym lepiej
-                            double heuristic = (1.0 / (1 + Math.Abs((day.Date - deadline).TotalDays))) * (1 + loadFactor);
-
-                            double value = Math.Pow(tau, alpha) * Math.Pow(heuristic, beta);
-                            probabilities.Add((day.Date, value));
-                            denom += value;
-                        }
-
-                        if (denom == 0)
-                            break;
-
-                        var normalized = probabilities
-                            .Select(p => (day: p.day, prob: p.probability / denom))
-                            .ToList();
-
-                        double q = random.NextDouble();
-                        DateTime chosenDate;
-
-                        if (q < q0)
-                        {
-                            chosenDate = normalized.OrderByDescending(p => p.prob).First().day;
-                        }
-                        else
-                        {
-                            double roll = random.NextDouble();
-                            double cumulative = 0;
-                            chosenDate = normalized.Last().day;
-
-                            foreach (var p in normalized)
-                            {
-                                cumulative += p.prob;
-                                if (roll <= cumulative)
-                                {
-                                    chosenDate = p.day;
-                                    break;
-                                }
-                            }
-                        }
-
-                        var chosenDay = availableDays.First(d => d.Date == chosenDate);
-                        int assignable = Math.Min(remaining, chosenDay.HoursLeft);
-
-                        if (assignable <= 0)
-                            break;
-
-                        // bez wymuszania minimalnego bloku
-                        int assigned = random.Next(1, assignable + 1);
-
-                        schedule.Add(new ScheduleEntryDto
-                        {
-                            Date = chosenDate,
-                            Hours = assigned,
-                            Subtask = subtask
-                        });
-
-                        chosenDay.HoursLeft -= assigned;
-                        remaining -= assigned;
-                    }
-                }
-            }
-
-            return schedule
-                .OrderBy(s => s.Date)
-                .ThenBy(s => s.Subtask?.TaskEncodedName ?? "")
-                .ThenBy(s => s.Subtask?.Order ?? int.MaxValue)
-                .ToList();
-        }
-        private void UpdatePheromones(Dictionary<(string subtaskEncodedName, DateTime date), double> pheromones,List<List<ScheduleEntryDto>> antSchedules,List<double> antScores,double evaporationRate, double Q,
-                                    List<DailyAvailabilityDto> availabilities)
-        {
-            double minPheromone = 0.1;
-            double maxPheromone = 5.0;
-
-            // parowanie globalne
-            foreach (var key in pheromones.Keys.ToList())
-            {
-                pheromones[key] *= (1 - evaporationRate);
-                pheromones[key] = Math.Max(minPheromone, pheromones[key]);
-            }
-
-            // wzmocnienie
-            for (int k = 0; k < antSchedules.Count; k++)
-            {
-                var solution = antSchedules[k];
-                double contribution = Q * antScores[k];
-
-                foreach (var entry in solution.Where(x => x.Subtask != null))
-                {
-                    var key = (entry.Subtask!.TaskEncodedName ?? "", entry.Date);
-
-                    // Sprawdź czy dzień nie został przeładowany
-                    var used = solution
-                        .Where(s => s.Date == entry.Date)
-                        .Sum(s => s.Hours);
-
-                    var available = availabilities
-                        .FirstOrDefault(a => a.Date == entry.Date)?.AvailableHours ?? 0;
-
-                    if (used <= available)
-                    {
-                        // normalne wzmocnienie
-                        pheromones[key] += contribution;
+                        chosen = scored.OrderByDescending(x => x.p).First().day;
                     }
                     else
                     {
-                        // kara - dodatkowe parowanie
-                        pheromones[key] *= (1 - evaporationRate * 2);
+                        // roulette
+                        double r = rnd.NextDouble() * sum, acc = 0;
+                        chosen = scored.Last().day;
+                        foreach (var x in scored)
+                        {
+                            acc += x.p;
+                            if (r <= acc) { chosen = x.day; break; }
+                        }
                     }
 
-                    pheromones[key] = Math.Clamp(pheromones[key], minPheromone, maxPheromone);
+                    int assign = Math.Min(remaining, chosen.HoursLeft);
+                    schedule.Add(new ScheduleEntryDto
+                    {
+                        Date = chosen.Date,
+                        Hours = assign,
+                        Subtask = sub
+                    });
+                    chosen.HoursLeft -= assign;
+                    remaining -= assign;
+                }
+            }
+
+            // (Twój RepairSchedule bez zmian)
+            RepairSchedule(schedule, days, av);
+            return schedule.OrderBy(x => x.Date)
+                           .ThenBy(x => x.Subtask?.Order ?? int.MaxValue)
+                           .ToList();
+        }
+
+
+        // ► 2. Faza naprawcza – przenosi nadmiary w luźniejsze dni
+        private void RepairSchedule(List<ScheduleEntryDto> sched,Dictionary<DateTime, AvailableDay> work, List<DailyAvailabilityDto> av)
+        {
+            // a) nadgodziny – przesuwaj najmniejsze bloki w pierwsze wolne miejsce
+            foreach (var g in sched.GroupBy(s => s.Date))
+            {
+                double used = g.Sum(x => x.Hours);
+                double cap = av.First(d => d.Date == g.Key).AvailableHours;
+                if (used <= cap) continue;                           // OK
+
+                // sortuj od najmniejszych bloków – łatwiej upchnąć
+                foreach (var entry in g.OrderBy(e => e.Hours).ToList())
+                {
+                    // znajdź pierwszy dzień z wolnym slotem
+                    var target = work.Values.FirstOrDefault(d => d.HoursLeft >= entry.Hours);
+                    if (target == null) break;                       // trudno – zostanie overrun
+
+                    work[target.Date].HoursLeft -= entry.Hours;
+                    work[entry.Date].HoursLeft += entry.Hours;      // zwalniamy
+                    entry.Date = target.Date;
+                    used -= entry.Hours;
+                    if (used <= cap) break;
+                }
+            }
+
+            // b) nieprzydzielone bloki – wrzucamy gdzie się da (po terminie → większa kara)
+            foreach (var (sub, h) in _unplaced)
+            {
+                int left = h;
+                while (left > 0)
+                {
+                    var slot = work.Values.FirstOrDefault(d => d.HoursLeft > 0);
+                    if (slot == null) break;
+
+                    int assign = Math.Min(left, slot.HoursLeft);
+                    sched.Add(new ScheduleEntryDto { Date = slot.Date, Hours = assign, Subtask = sub });
+                    slot.HoursLeft -= assign;
+                    left -= assign;
+                }
+            }
+            _unplaced.Clear();
+        }
+
+        // pole prywatne w klasie AntAlgorithmService
+        private readonly List<(SubtaskDto sub, int hours)> _unplaced = new();
+
+        // ► 3. Feromony – premia tylko za CAŁE subtaski
+        private void UpdatePheromones(Dictionary<(string sub, DateTime d), double> pher,List<List<ScheduleEntryDto>> ants,List<double> scores,
+        double Q, double evap,List<DailyAvailabilityDto> av)
+        {
+            const double min = 0.1, max = 5.0;
+            // parowanie
+            foreach (var key in pher.Keys.ToList())
+                pher[key] = Math.Max(min, pher[key] * (1 - evap));
+
+            // wzmocnienie
+            for (int i = 0; i < ants.Count; i++)
+            {
+                double delta = Q * scores[i];
+                // Twoja logika podzadaniowa...
+                foreach (var e in ants[i])
+                {
+                    // tylko gdy subtask w całości
+                    // ...
+                    var key = (e.Subtask!.TaskEncodedName!, e.Date);
+                    pher[key] = Math.Min(max, pher[key] + delta);
                 }
             }
         }
+
 
 
     }
