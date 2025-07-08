@@ -178,7 +178,29 @@
                         '#00BCD4', '#795548', '#607D8B'
                     ];
 
+                    const grouped = {};
+
                     events.forEach(ev => {
+                        const key = `${ev.start}|${ev.extendedProps.taskEncodedName}|${ev.extendedProps.subtaskDescription}`;
+                        if (!grouped[key]) {
+                            grouped[key] = {
+                                id: ev.id,
+                                title: ev.extendedProps.taskName + ` - ${ev.extendedProps.hours}h`,
+                                start: ev.start,
+                                color: '',
+                                extendedProps: {
+                                    ...ev.extendedProps,
+                                    hours: ev.extendedProps.hours
+                                }
+                            };
+                        } else {
+                            grouped[key].extendedProps.hours += ev.extendedProps.hours;
+                            grouped[key].title = ev.extendedProps.subtaskDescription + ` - ${grouped[key].extendedProps.hours}h`;
+                        }
+                    });
+
+                    // Nadawanie kolorów po tasku
+                    Object.values(grouped).forEach(ev => {
                         const taskName = ev.extendedProps.taskEncodedName;
                         if (!taskColors[taskName]) {
                             taskColors[taskName] = colorPalette[colorIndex % colorPalette.length];
@@ -187,8 +209,9 @@
                         ev.color = taskColors[taskName];
                     });
 
-                    return events;
+                    return Object.values(grouped);
                 }
+
             });
         }
 

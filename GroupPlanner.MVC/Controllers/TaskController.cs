@@ -4,13 +4,13 @@ using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
 using GroupPlanner.Domain.Entities;
 using GroupPlanner.Domain.Interfaces;
-using GroupPlanner.Infrastructure;
 using GroupPlanner.MVC.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GroupPlanner.MVC.Controllers
 {
+    [Authorize]
     public class TaskController : Controller
     {
         private readonly ITaskRepository _taskRepository;
@@ -30,7 +30,7 @@ namespace GroupPlanner.MVC.Controllers
             _mapper = mapper;
         }
 
-        [Authorize]
+        // INDEX
         public async Task<IActionResult> Index()
         {
             var user = _userContext.GetCurrentUser();
@@ -39,19 +39,17 @@ namespace GroupPlanner.MVC.Controllers
             return View(dtos);
         }
 
-        [Authorize]
+        // CREATE
         [HttpGet]
         public IActionResult Create()
         {
             return View();
         }
 
-        [Authorize]
         [HttpPost]
         public async Task<IActionResult> Create(TaskDto dto)
         {
-            if (!ModelState.IsValid)
-                return View(dto);
+            if (!ModelState.IsValid) return View(dto);
 
             var task = _mapper.Map<Domain.Entities.Task>(dto);
             var user = _userContext.GetCurrentUser();
@@ -66,8 +64,8 @@ namespace GroupPlanner.MVC.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        [HttpGet]
-        [Route("Task/{encodedName}/Details")]
+        // DETAILS
+        [HttpGet("Task/{encodedName}/Details")]
         public async Task<IActionResult> Details(string encodedName)
         {
             var task = await _taskRepository.GetByEncodedName(encodedName);
@@ -76,70 +74,56 @@ namespace GroupPlanner.MVC.Controllers
             var dto = _mapper.Map<TaskDto>(task);
             return View(dto);
         }
-        [HttpGet]
-        [Route("Task/{encodedName}/Edit")]
-        [Authorize]
+
+        // EDIT
+        [HttpGet("Task/{encodedName}/Edit")]
         public async Task<IActionResult> Edit(string encodedName)
-        {
-            var task = await _taskRepository.GetByEncodedName(encodedName);
-            if (task == null)
-                return NotFound();
-
-            var user = _userContext.GetCurrentUser();
-            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
-                return RedirectToAction("NoAccess", "Home");
-
-            var dto = _mapper.Map<TaskDto>(task);
-            return View(dto);
-        }
-
-        [HttpPost]
-        [Route("Task/{encodedName}/Edit")]
-        [Authorize]
-        public async Task<IActionResult> Edit(string encodedName, TaskDto dto)
-        {
-            if (!ModelState.IsValid)
-            {
-                
-                return View(dto);
-            }
-
-            var task = await _taskRepository.GetByEncodedName(encodedName);
-            if (task == null)
-                return NotFound();
-
-            var user = _userContext.GetCurrentUser();
-            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
-                return RedirectToAction("NoAccess", "Home");
-
-            task.Name = dto.Name;
-            task.Priority = dto.Priority;
-            task.TaskType = dto.TaskType;
-            task.ProgressStatus = dto.ProgressStatus;
-            task.Details.Description = dto.Description;
-            task.Details.Deadline = dto.Deadline;
-
-            await _taskRepository.Commit();
-
-            this.SetNotification("success", $"Task updated: {dto.Name}");
-
-            return RedirectToAction(nameof(Edit), new { encodedName = dto.EncodedName });
-        }
-
-
-        [HttpGet]
-        [Route("Task/{encodedName}/Delete")]
-        public async Task<IActionResult> Delete(string encodedName)
         {
             var task = await _taskRepository.GetByEncodedName(encodedName);
             if (task == null) return NotFound();
 
+            var user = _userContext.GetCurrentUser();
+            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return RedirectToAction("NoAccess", "Home");
+
             var dto = _mapper.Map<TaskDto>(task);
             return View(dto);
         }
 
-        [HttpPost]
-        [Route("Task/{encodedName}/Delete")]
+        [HttpPost("Task/{encodedName}/Edit")]
+        public async Task<IActionResult> Edit(string encodedName, TaskDto dto)
+        {
+            if (!ModelState.IsValid)
+                return View(dto);
+
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+            if (task == null) return NotFound();
+
+            var user = _userContext.GetCurrentUser();
+            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return RedirectToAction("NoAccess", "Home");
+
+            task.Details.Description = dto.Description;
+            task.Details.Deadline = dto.Deadline;
+
+            // tylko aktualizujemy jeśli wysłano poprawną wartość
+            if (Enum.IsDefined(typeof(TaskPriority), dto.Priority))
+                task.Priority = dto.Priority;
+
+            if (Enum.IsDefined(typeof(TaskType), dto.TaskType))
+                task.TaskType = dto.TaskType;
+
+            task.ProgressStatus = dto.ProgressStatus;
+
+            await _taskRepository.Commit();
+
+            this.SetNotification("success", $"Task updated: {dto.Name}");
+            return RedirectToAction(nameof(Edit), new { encodedName });
+        }
+
+       
+
+        [HttpPost("Task/{encodedName}/Delete")]
         public async Task<IActionResult> DeleteConfirmed(string encodedName)
         {
             var task = await _taskRepository.GetByEncodedName(encodedName);
@@ -154,12 +138,14 @@ namespace GroupPlanner.MVC.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // SUBTASKS
         [HttpPost]
         [Route("Task/Subtask")]
         public async Task<IActionResult> CreateSubtask(SubtaskDto dto)
         {
             var task = await _taskRepository.GetByEncodedName(dto.TaskEncodedName!);
-            if (task == null) return BadRequest("Parent task not found");
+            if (task == null)
+                return BadRequest("Parent task not found");
 
             var user = _userContext.GetCurrentUser();
             if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
@@ -168,10 +154,13 @@ namespace GroupPlanner.MVC.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var subtask = _mapper.Map<Domain.Entities.Subtask>(dto);
+            var subtask = _mapper.Map<Subtask>(dto);
             subtask.TaskId = task.Id;
 
-            // ustalamy kolejny numer porządkowy
+            // wymuszamy status na NotStarted
+            subtask.ProgressStatus = ProgressStatus.NotStarted;
+
+            // ustalamy kolejność
             var existing = await _subtaskRepository.GetAllByTaskId(task.Id);
             subtask.Order = existing.Count() + 1;
 
@@ -180,8 +169,7 @@ namespace GroupPlanner.MVC.Controllers
         }
 
 
-        [HttpGet]
-        [Route("Task/{encodedName}/Subtask")]
+        [HttpGet("Task/{encodedName}/Subtask")]
         public async Task<IActionResult> GetSubtasks(string encodedName)
         {
             var subtasks = await _subtaskRepository.GetAllByEncodedName(encodedName);
@@ -197,7 +185,53 @@ namespace GroupPlanner.MVC.Controllers
             if (subtask == null) return NotFound();
 
             await _subtaskRepository.Delete(subtask);
-            return Ok();
+
+            // pobierz task ponownie
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+
+            return Ok(new
+            {
+                newStatus = task?.ProgressStatus.ToString()
+            });
+        }
+
+
+        [HttpPost("Task/{encodedName}/Subtask/{subtaskId}/WorkedHours")]
+        public async Task<IActionResult> UpdateWorkedHours(string encodedName, int subtaskId, [FromBody] int delta)
+        {
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+            if (task == null) return NotFound();
+
+            var user = _userContext.GetCurrentUser();
+            if (task.CreatedById != user.Id && !user.IsInRole("Moderator"))
+                return Forbid();
+
+            var subtask = await _subtaskRepository.GetByIdAsync(subtaskId);
+            if (subtask == null) return NotFound();
+
+            var newWorked = subtask.WorkedHours + delta;
+
+            if (newWorked < 0)
+                return BadRequest("Worked hours cannot be below zero.");
+            if (newWorked > subtask.EstimatedTime)
+                return BadRequest("Worked hours cannot exceed estimated time.");
+
+            await _subtaskRepository.UpdateWorkedHours(subtaskId, newWorked);
+
+            var refreshed = await _taskRepository.GetByEncodedName(encodedName);
+
+            return Ok(new
+            {
+                newStatus = refreshed?.ProgressStatus.ToString()
+            });
+        }
+
+        [HttpGet("Task/{encodedName}/Status")]
+        public async Task<IActionResult> GetTaskStatus(string encodedName)
+        {
+            var task = await _taskRepository.GetByEncodedName(encodedName);
+            if (task == null) return NotFound();
+            return Ok(task.ProgressStatus.ToString());
         }
     }
 }

@@ -8,6 +8,7 @@
 <div class="card mx-auto mt-5" style="max-width:600px;">
     <div class="card-header bg-primary text-white">
         <h1 class="h3 mb-0">New Task</h1>
+    </div>
     <div class="card-body">
         <form asp-action="Create" method="post" novalidate>
             <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
@@ -29,12 +30,12 @@
                     <div class="form-floating">
                         <input asp-for="Deadline" type="date" class="form-control" placeholder="Deadline" />
                         <label asp-for="Deadline">Deadline</label>
+                        <span asp-validation-for="Deadline" class="text-danger small"></span>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="form-floating">
-                        <select asp-for="Priority" class="form-select" placeholder="Priority">
-                            <option value="">Select priority</option>
+                        <select asp-for="Priority" class="form-select">
                             <option value="1">Low</option>
                             <option value="2">Medium</option>
                             <option value="3">High</option>
@@ -49,8 +50,7 @@
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
                     <div class="form-floating">
-                        <select asp-for="TaskType" class="form-select" placeholder="Task Type">
-                            <option value="">Select type</option>
+                        <select asp-for="TaskType" class="form-select">
                             <option value="Project">Project</option>
                             <option value="Task">Task</option>
                             <option value="AdditionalTask">Additional Task</option>
@@ -60,18 +60,7 @@
                         <span asp-validation-for="TaskType" class="text-danger small"></span>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <select asp-for="ProgressStatus" class="form-select" placeholder="Progress Status">
-                            <option value="">Select status</option>
-                            <option value="NotStarted">Not Started</option>
-                            <option value="InProgress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                        </select>
-                        <label asp-for="ProgressStatus">Progress Status</label>
-                        <span asp-validation-for="ProgressStatus" class="text-danger small"></span>
-                    </div>
-                </div>
+               
             </div>
 
             <div class="d-flex justify-content-end">

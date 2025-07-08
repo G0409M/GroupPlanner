@@ -1,6 +1,6 @@
 ﻿@using GroupPlanner.Domain.Entities
 @using GroupPlanner.MVC.Extensions
-@using GroupPlanner.Application.Task    <!-- ensure TaskPriority enum visible -->
+@using GroupPlanner.Application.Task
 @model IEnumerable<GroupPlanner.Application.Task.TaskDto>
 
 @{
@@ -11,7 +11,6 @@
     <div class="d-flex align-items-center">
         <i class="bi bi-list-task display-4 text-primary me-3"></i>
         <div>
-
             <h1 class="h3 mb-0">My Tasks</h1>
             <small class="text-muted">Here’s what you need to work on</small>
         </div>
@@ -25,6 +24,32 @@
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
     @foreach (var item in Model)
     {
+        var prioClass = item.Priority switch
+        {
+            TaskPriority.Critical => "bg-danger text-white",  // czerwony
+            TaskPriority.High => "bg-warning text-dark",  // żółty
+            TaskPriority.Medium => "bg-primary text-white", // niebieski
+            TaskPriority.Low => "bg-secondary",          // szary
+            _ => "bg-secondary"
+        };
+
+        var progressClass = item.ProgressStatus switch
+        {
+            ProgressStatus.Completed => "bg-success text-white",        // zielony
+            ProgressStatus.InProgress => "bg-info text-dark",           // niebieski
+            ProgressStatus.NotStarted => "bg-light text-dark border",   // jasne z ramką
+            _ => "bg-secondary"
+        };
+
+        var typeClass = item.TaskType switch
+        {
+            TaskType.Project => "bg-primary text-white",
+            TaskType.Task => "bg-secondary",
+            TaskType.AdditionalTask => "bg-warning text-dark",
+            TaskType.Other => "bg-dark text-white",
+            _ => "bg-secondary"
+        };
+
         <div class="col">
             <div class="card h-100 shadow-sm">
                 <div class="card-body d-flex flex-column">
@@ -38,23 +63,13 @@
                     <p class="card-text flex-grow-1 text-truncate-2">@item.Description</p>
 
                     <div class="mb-3">
-                        <span class="badge bg-primary me-1">
+                        <span class="badge @typeClass me-1">
                             @item.TaskType.GetDisplayName()
                         </span>
-                        @* Priority badge with correct enum reference and handling of 4 levels *@
-                        @{
-                            var prioClass = item.Priority == TaskPriority.Critical
-                            ? "bg-dark text-white"
-                            : item.Priority == TaskPriority.High
-                            ? "bg-danger"
-                            : item.Priority == TaskPriority.Medium
-                            ? "bg-warning text-dark"
-                            : "bg-secondary";
-                        }
                         <span class="badge @prioClass me-1">
                             @item.Priority.GetDisplayName()
                         </span>
-                        <span class="badge bg-secondary me-1">
+                        <span class="badge @progressClass me-1">
                             @item.ProgressStatus.GetDisplayName()
                         </span>
                     </div>
@@ -74,14 +89,17 @@
                             <i class="bi bi-pencil-fill me-1"></i>
                             Edit
                         </a>
-                        <a class="btn btn-outline-danger btn-sm"
-                           asp-controller="Task"
-                           asp-action="Delete"
-                           asp-route-encodedName="@item.EncodedName"
-                           onclick="return confirm('Are you sure you want to delete this task?');">
-                            <i class="bi bi-trash-fill me-1"></i>
-                            Delete
-                        </a>
+
+                        <form asp-controller="Task"
+                              asp-action="DeleteConfirmed"
+                              asp-route-encodedName="@item.EncodedName"
+                              method="post"
+                              onsubmit="return confirm('Are you sure you want to delete this task?');"
+                              style="display:inline;">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-trash-fill me-1"></i> Delete
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>

@@ -15,5 +15,6 @@ namespace GroupPlanner.Domain.Interfaces
         System.Threading.Tasks.Task<Subtask?> GetByIdAsync(int id);
         Task<IEnumerable<Subtask>> GetAllByUserId(string userId);
         Task<IEnumerable<Subtask>> GetAllByTaskId(int taskId);
+        System.Threading.Tasks.Task UpdateWorkedHours(int subtaskId, int workedHours);
     }
 }

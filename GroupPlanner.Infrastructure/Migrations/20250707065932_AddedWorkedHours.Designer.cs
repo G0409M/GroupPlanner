@@ -4,6 +4,7 @@ using GroupPlanner.Infrastructure.Persistance;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroupPlanner.Infrastructure.Migrations
 {
     [DbContext(typeof(GroupPlannerDbContext))]
-    partial class GroupPlannerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250707065932_AddedWorkedHours")]
+    partial class AddedWorkedHours
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

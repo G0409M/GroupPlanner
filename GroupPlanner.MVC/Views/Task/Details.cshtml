@@ -8,7 +8,6 @@
 <!-- Page header -->
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
-
         <h1 class="h3 mb-0">@Model.Name</h1>
         <small class="text-muted">Here’s everything you need to know about this task</small>
     </div>
@@ -55,7 +54,7 @@
                 </li>
                 <li class="list-group-item">
                     <strong>Status:</strong>
-                    <span class="badge bg-warning text-dark ms-2">@Model.ProgressStatus</span>
+                    <span class="badge bg-warning text-dark ms-2 task-status-badge">@Model.ProgressStatus</span>
                 </li>
             </ul>
         </div>
@@ -83,7 +82,7 @@
             </div>
             <div class="card-body">
                 <div id="subtasks" class="row g-3" data-encoded-name="@Model.EncodedName">
-                    <!-- tutaj Details.js wrzuca pojedyncze karty podzadań -->
+                    <!-- Details.js will inject subtask cards here -->
                 </div>
             </div>
         </div>

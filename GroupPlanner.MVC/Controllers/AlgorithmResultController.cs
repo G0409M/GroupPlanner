@@ -72,13 +72,35 @@ namespace GroupPlanner.MVC.Controllers
         public async Task<IActionResult> Run(AlgorithmRunViewModel model)
         {
             var user = _userContext.GetCurrentUser();
-            var tasks = await _taskRepository.GetAllByUserId(user.Id);
-            var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
-            var availability = await _availabilityRepository.GetAllByUserId(user.Id);
 
-            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
-            var subtaskDtos = _mapper.Map<List<SubtaskDto>>(subtasks);
-            var availabilityDtos = _mapper.Map<List<DailyAvailabilityDto>>(availability);
+            // tasks: tylko nieukończone
+            var tasks = await _taskRepository.GetAllByUserId(user.Id);
+            var filteredTasks = tasks
+                .Where(t => t.ProgressStatus != ProgressStatus.Completed)
+                .ToList();
+
+            // subtasks: tylko te, które mają EstimatedTime - WorkedHours > 0
+            var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
+            var filteredSubtasks = subtasks
+                .Where(s => s.EstimatedTime - s.WorkedHours > 0)
+                .Select(s =>
+                {
+                    s.EstimatedTime = s.EstimatedTime - s.WorkedHours;
+                    return s;
+                })
+                .ToList();
+
+            // availability: tylko od dziś do przyszłości
+            var availability = await _availabilityRepository.GetAllByUserId(user.Id);
+            var today = DateTime.Today;
+            var filteredAvailability = availability
+                .Where(a => a.Date >= today)
+                .ToList();
+
+            // mapowanie
+            var taskDtos = _mapper.Map<List<TaskDto>>(filteredTasks);
+            var subtaskDtos = _mapper.Map<List<SubtaskDto>>(filteredSubtasks);
+            var availabilityDtos = _mapper.Map<List<DailyAvailabilityDto>>(filteredAvailability);
 
             var start = DateTime.UtcNow;
             AlgorithmRunResultDto runResult;
@@ -135,7 +157,6 @@ namespace GroupPlanner.MVC.Controllers
                             totalGenerations = parameters.Iterations
                         });
                     });
-
             }
 
             var duration = DateTime.UtcNow - start;
@@ -160,6 +181,7 @@ namespace GroupPlanner.MVC.Controllers
 
 
 
+
         public async Task<IActionResult> Details(int id)
         {
             var result = await _algorithmResultRepository.GetByIdAsync(id);
@@ -172,20 +194,37 @@ namespace GroupPlanner.MVC.Controllers
             var schedule = JsonConvert.DeserializeObject<List<ScheduleEntryDto>>(result.ResultData);
 
             var tasks = await _taskRepository.GetAllByUserId(user.Id);
+            var filteredTasks = tasks
+                .Where(t => t.ProgressStatus != ProgressStatus.Completed)
+                .ToList();
+
             var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
+            var filteredSubtasks = subtasks
+                .Where(s => s.EstimatedTime - s.WorkedHours > 0)
+                .Select(s =>
+                {
+                    s.EstimatedTime = s.EstimatedTime - s.WorkedHours;
+                    return s;
+                })
+                .ToList();
+
             var availability = await _availabilityRepository.GetAllByUserId(user.Id);
+            var today = DateTime.Today;
+            var filteredAvailability = availability
+                .Where(a => a.Date >= today)
+                .ToList();
 
             var dto = new AlgorithmResultDetailsDto
             {
-                Tasks = _mapper.Map<List<TaskDto>>(tasks),
-                Subtasks = _mapper.Map<List<SubtaskDto>>(subtasks),
-                Availability = _mapper.Map<List<DailyAvailabilityDto>>(availability)
+                Tasks = _mapper.Map<List<TaskDto>>(filteredTasks),
+                Subtasks = _mapper.Map<List<SubtaskDto>>(filteredSubtasks),
+                Availability = _mapper.Map<List<DailyAvailabilityDto>>(filteredAvailability)
             };
 
             ViewBag.Schedule = schedule;
             ViewBag.Algorithm = result.Algorithm;
             ViewBag.Duration = result.Duration;
-            ViewBag.ResultValue = Math.Round(result.ResultValue, 2); // zaokrąglenie
+            ViewBag.ResultValue = Math.Round(result.ResultValue, 2);
             ViewBag.ScoreHistory = result.ScoreHistoryJson;
 
             var totalHoursPlanned = schedule.Sum(x => x.Hours);
@@ -248,7 +287,6 @@ namespace GroupPlanner.MVC.Controllers
                 }
             }
 
-            // podzadania nierozdrobnione (w pełni zaplanowane)
             var nonSplitSubtasks = dto.Subtasks.Count(sub =>
             {
                 var entries = schedule
@@ -258,7 +296,6 @@ namespace GroupPlanner.MVC.Controllers
                 return entries.Count == 1 && entries.Sum(s => s.Hours) >= sub.EstimatedTime;
             });
 
-            // średnia liczba dni na podzadanie
             var avgDaysPerSubtask = dto.Subtasks
                 .Select(sub =>
                 {
@@ -272,14 +309,12 @@ namespace GroupPlanner.MVC.Controllers
                 .DefaultIfEmpty(0)
                 .Average();
 
-            // średnia wielkość bloku godzinowego
             var avgBlockSize = schedule
                 .GroupBy(x => (x.Date, x.Subtask?.Id))
                 .Select(g => g.Sum(x => x.Hours))
                 .DefaultIfEmpty(0)
                 .Average();
 
-            // dni z przekroczeniem dostępności
             var overbookedDays = dto.Availability
                 .Count(av =>
                 {
@@ -289,7 +324,6 @@ namespace GroupPlanner.MVC.Controllers
                     return used > av.AvailableHours;
                 });
 
-            // średnie wykorzystanie dzienne
             var avgUsagePerDay = dto.Availability.Any()
                 ? dto.Availability.Average(av =>
                 {
@@ -298,7 +332,6 @@ namespace GroupPlanner.MVC.Controllers
                 })
                 : 0;
 
-            // ViewBag
             ViewBag.TotalHoursPlanned = totalHoursPlanned;
             ViewBag.TotalHoursPlannedPercent = Math.Round(plannedPercent, 1);
             ViewBag.HoursOnTime = hoursOnTime;
@@ -314,6 +347,7 @@ namespace GroupPlanner.MVC.Controllers
 
             return View(dto);
         }
+
 
 
         [HttpGet]

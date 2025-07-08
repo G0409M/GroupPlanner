@@ -1,24 +1,29 @@
 ﻿@using GroupPlanner.Application.Task
 @model TaskDto
 @using GroupPlanner.Application.Subtask
+@using GroupPlanner.Domain.Entities
 
 @{
     ViewData["Title"] = "Edit Task";
 }
-
 <!-- Page header -->
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div class="d-flex align-items-center">
         <i class="bi bi-pencil-square display-4 text-warning me-3"></i>
         <div>
-
             <h1 class="h3 mb-0">Edit “@Model.Name”</h1>
             <small class="text-muted">Modify the task’s properties below</small>
         </div>
     </div>
-    <a asp-action="Index" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left-circle me-1"></i> Back to List
-    </a>
+
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to List
+        </a>
+        <a asp-action="Details" asp-route-encodedName="@Model.EncodedName" class="btn btn-outline-primary">
+            <i class="bi bi-eye me-1"></i> Back to Details
+        </a>
+    </div>
 </div>
 
 <div class="row">
@@ -78,16 +83,7 @@
                         <span asp-validation-for="Deadline" class="text-danger"></span>
                     </div>
 
-                    <!-- Progress Status -->
-                    <div class="mb-3">
-                        <label asp-for="ProgressStatus" class="form-label">Status</label>
-                        <select asp-for="ProgressStatus" class="form-select">
-                            <option value="NotStarted">Not Started</option>
-                            <option value="InProgress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                        </select>
-                        <span asp-validation-for="ProgressStatus" class="text-danger"></span>
-                    </div>
+                   
 
                     <button type="submit" class="btn btn-warning">
                         <i class="bi bi-save me-1"></i> Save Changes
@@ -121,10 +117,7 @@
                     <strong>Priority:</strong>
                     <span class="badge bg-secondary ms-2">@Model.Priority</span>
                 </li>
-                <li class="list-group-item">
-                    <strong>Status:</strong>
-                    <span class="badge bg-info text-dark ms-2">@Model.ProgressStatus</span>
-                </li>
+                
             </ul>
         </div>
 
@@ -146,8 +139,8 @@
         <h5 class="card-title mb-0">Subtasks</h5>
     </div>
     <div class="card-body">
-        <div id="subtasks" class="row g-3" data-encoded-name="@Model.EncodedName">
-            <!-- Edit.js dynamic subtasks here -->
+        <div id="subtasks" class="row g-3" data-encoded-name="@Model.EncodedName" data-edit-mode="true">
+            <!-- Edit.js dynamic subtasks -->
         </div>
     </div>
 </div>
