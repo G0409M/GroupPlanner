@@ -65,7 +65,7 @@ namespace GroupPlanner.MVC.Controllers
             var totalEstimated = subtasks.Sum(s => s.EstimatedTime);
             var totalWorked = subtasks.Sum(s => s.WorkedHours);
 
-            // Harmonogram
+            // Pobierz harmonogram u¿ytkownika z bazy (dla kropek w kalendarzu)
             var latestSchedule = await _userScheduleRepository.GetLatestByUserId(user.Id);
             List<ScheduleEntryDto> plannedEntries = new();
             if (latestSchedule != null && !string.IsNullOrEmpty(latestSchedule.ScheduleDataJson))
@@ -74,44 +74,11 @@ namespace GroupPlanner.MVC.Controllers
                                  ?? new List<ScheduleEntryDto>();
             }
 
-            // Uzupe³nij dane w podzadaniach harmonogramu
-            var subtaskIds = plannedEntries
-                .Where(e => e.Subtask != null)
-                .Select(e => e.Subtask.Id)
-                .Distinct()
-                .ToList();
-
-            var dbSubtasks = await _subtaskRepository.GetByIds(subtaskIds);
-            var subtaskMap = dbSubtasks
-                .Select(s =>
-                {
-                    var dto = _mapper.Map<SubtaskDto>(s);
-                    dto.TaskEncodedName = s.Task?.EncodedName;
-                    return dto;
-                })
-                .ToDictionary(s => s.Id, s => s);
-
-            foreach (var entry in plannedEntries)
-            {
-                if (entry.Subtask != null && subtaskMap.TryGetValue(entry.Subtask.Id, out var enriched))
-                {
-                    entry.Subtask = enriched;
-                }
-            }
-
-            var today = DateTime.Today;
-            var upcoming = plannedEntries
-                .Where(e => e.Date >= today && e.Date <= today.AddDays(3))
-                .OrderBy(e => e.Date)
-                .ToList();
-
             var model = new DashboardViewModel
             {
                 Subtasks = subtasks,
                 TaskNameMap = taskNameMap,
-                LatestSchedule = latestSchedule,
                 PlannedEntries = plannedEntries,
-                UpcomingTasks = upcoming,
                 KPI = new KPIViewModel
                 {
                     CompletedCount = completed,
@@ -124,17 +91,6 @@ namespace GroupPlanner.MVC.Controllers
                     TotalWorked = totalWorked
                 }
             };
-
-            var userScheduleGrouped = plannedEntries
-                .GroupBy(e => e.Date.Date)
-                .Select(g => new
-                {
-                    Date = g.Key,
-                    Entries = g.ToList()
-                })
-                .ToList();
-            ViewBag.GroupedSchedule = userScheduleGrouped;
-
 
             return View(model);
         }

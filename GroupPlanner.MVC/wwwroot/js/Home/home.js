@@ -80,7 +80,7 @@
 
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(year, month, day);
-            const dateKey = date.toISOString().substring(0, 10);
+            const dateKey = date.toLocaleDateString('en-CA');
             const dots = calendarMap.get(dateKey) || 0;
             const dotStr = Array.from({ length: dots }, () => '●').join('');
 
@@ -95,74 +95,4 @@
         calendarEl.innerHTML = html;
     }
 
-    // =========================
-    // ✅ Upcoming Task Day
-    // =========================
-    const upcomingTasksContainer = document.getElementById("upcomingTasksContainer");
-
-    if (upcomingTasksContainer && Array.isArray(window.userSchedule)) {
-        const schedule = window.userSchedule;
-
-        const upcoming = schedule
-            .filter(entry => new Date(entry.Date) >= new Date())
-            .sort((a, b) => new Date(a.Date) - new Date(b.Date));
-
-        if (upcoming.length === 0) {
-            upcomingTasksContainer.innerHTML = `<div class="alert alert-info text-center">No upcoming tasks scheduled.</div>`;
-        } else {
-            const nearest = upcoming[0];
-            const subtaskCards = nearest.Entries.map(e => {
-                const worked = e.workedHours || 0;
-                const total = e.estimatedTime || 0;
-                const status = e.progressStatus ?? 0;
-                const badge = status === 2 ? "success" : status === 1 ? "warning" : "secondary";
-                const hrText = total === 1 ? "hour" : "hours";
-                const description = e.SubtaskDescription || "(no description)";
-                const subtaskId = e.SubtaskId;
-
-                return `
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title">${description}</h5>
-                            <span class="badge bg-${badge} mb-2">${["Not Started", "In Progress", "Completed"][status]}</span>
-                            <p class="text-muted mb-1"><i class="bi bi-clock me-1"></i>${total} ${hrText}</p>
-                            <p class="text-muted mb-3"><i class="bi bi-check-circle me-1"></i>${worked} worked</p>
-                            <div class="mt-auto d-flex gap-2 justify-content-end">
-                                <button class="btn btn-outline-success btn-sm markWorked" data-subtask-id="${subtaskId}">
-                                    <i class="bi bi-plus-circle"></i> +1h
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-            }).join("");
-
-            upcomingTasksContainer.innerHTML = `
-                <h5 class="mb-3 text-primary">
-                    <i class="bi bi-calendar-event me-1"></i> ${nearest.Date.substring(0, 10)}
-                </h5>
-                <div class="row">${subtaskCards}</div>
-            `;
-
-            document.querySelectorAll('.markWorked').forEach(button => {
-                button.addEventListener('click', function () {
-                    const subtaskId = parseInt(this.getAttribute('data-subtask-id'));
-                    if (!subtaskId) return;
-
-                    fetch(`/Home/IncrementWorked`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ subtaskId })
-                    })
-                        .then(res => res.ok ? res.json() : Promise.reject())
-                        .then(data => {
-                            if (data.success) location.reload();
-                            else alert("Update failed.");
-                        })
-                        .catch(() => alert("Error updating worked hours"));
-                });
-            });
-        }
-    }
 });
