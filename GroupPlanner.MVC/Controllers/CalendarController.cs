@@ -5,6 +5,7 @@ using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Domain.Entities;
 using GroupPlanner.Domain.Interfaces;
 using GroupPlanner.Infrastructure.Persistance.Repositories;
+using GroupPlanner.Infrastructure.Repositories;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,16 +22,19 @@ namespace GroupPlanner.MVC.Controllers
         private readonly ITaskRepository _taskRepository;
         private readonly IDailyAvailabilityRepository _repository;
         private readonly IUserContext _userContext;
+        private readonly IUserScheduleRepository _userScheduleRepository;
+        private readonly ISubtaskRepository _subtaskRepository;
 
-        public CalendarController(IAlgorithmResultRepository algorithmResultRepository, ITaskRepository taskRepository, IDailyAvailabilityRepository repository, IUserContext userContext)
+        public CalendarController(IAlgorithmResultRepository algorithmResultRepository, ITaskRepository taskRepository, IDailyAvailabilityRepository repository, IUserContext userContext, IUserScheduleRepository userScheduleRepository, ISubtaskRepository subtaskRepository)
         {
             _taskRepository = taskRepository;
             _algorithmResultRepository = algorithmResultRepository;
             _repository = repository;
             _userContext = userContext;
+            _userScheduleRepository = userScheduleRepository;
+            _subtaskRepository = subtaskRepository;
         }
 
-        
         public async Task<IActionResult> Index()
         {
             var currentUser = _userContext.GetCurrentUser();
@@ -80,8 +84,8 @@ namespace GroupPlanner.MVC.Controllers
             var result = availabilities.Select(x => new DailyAvailabilityDto
             {
                 Id = x.Id,
-                Date = x.Date, 
-                AvailableHours = x.AvailableHours      
+                Date = x.Date,
+                AvailableHours = x.AvailableHours
             });
 
             return Json(result);
@@ -140,12 +144,11 @@ namespace GroupPlanner.MVC.Controllers
                 r.Id,
                 Algorithm = r.Algorithm == AlgorithmType.Genetic ? "Genetic" : "Ant",
                 Created = r.CreatedAt,
-                Score = r.ResultValue   // z wielkiej litery!
+                Score = r.ResultValue
             });
 
             return Json(dto);
         }
-
 
         [HttpGet]
         public async Task<IActionResult> GetPlannedEntriesForResult(int resultId)
@@ -158,25 +161,23 @@ namespace GroupPlanner.MVC.Controllers
             if (result == null || result.CreatedById != user.Id)
                 return NotFound();
 
-            // Rozpakuj JSON z ResultData
             var schedule = JsonConvert.DeserializeObject<List<ScheduleEntryDto>>(result.ResultData);
             if (schedule == null)
                 return Json(new List<object>());
 
-            // pobierz słownik nazw tasków użytkownika
             var tasks = await _taskRepository.GetAllByUserId(user.Id);
             var taskNameMap = tasks.ToDictionary(t => t.EncodedName, t => t.Name);
 
-            // przekształć na eventy dla FullCalendar
             var grouped = schedule
                 .GroupBy(s => new { s.Date, s.SubtaskDescription, s.Subtask.TaskEncodedName })
                 .Select(g => new
                 {
                     title = $"{taskNameMap.GetValueOrDefault(g.Key.TaskEncodedName)} - {g.Sum(x => x.Hours)}h",
                     start = g.Key.Date.ToString("yyyy-MM-dd"),
-                    color = "#FF9800", // default, nadpiszemy w JS
+                    color = "#FF9800",
                     extendedProps = new
                     {
+                        subtaskId = g.First().Subtask.Id,
                         subtaskDescription = g.Key.SubtaskDescription,
                         hours = g.Sum(x => x.Hours),
                         isPlanned = true,
@@ -189,8 +190,41 @@ namespace GroupPlanner.MVC.Controllers
             return Json(grouped);
         }
 
+        [HttpPost]
+        public async Task<IActionResult> SaveUserSchedule([FromBody] List<ScheduleEntryDto> modifiedSchedule)
+        {
+            var user = _userContext.GetCurrentUser();
+            if (user == null)
+                return Unauthorized();
 
+            var userSubtasks = await _subtaskRepository.GetAllByUserId(user.Id);
+            var subtaskMap = userSubtasks.ToDictionary(s => s.Id);
 
+            foreach (var entry in modifiedSchedule)
+            {
+                if (entry.Subtask != null && subtaskMap.TryGetValue(entry.Subtask.Id, out var fullSubtask))
+                {
+                    entry.Subtask.Description = fullSubtask.Description;
+                    entry.Subtask.ProgressStatus = fullSubtask.ProgressStatus;
+                    entry.Subtask.EstimatedTime = fullSubtask.EstimatedTime;
+                    entry.Subtask.WorkedHours = fullSubtask.WorkedHours;
+                    entry.Subtask.TaskEncodedName = fullSubtask.Task.EncodedName;
+                    entry.Subtask.TaskDeadline = fullSubtask.Task.Details.Deadline;
+                    entry.Subtask.Order = fullSubtask.Order;
+                }
+            }
 
+            var schedule = new UserSchedule
+            {
+                CreatedById = user.Id,
+                CreatedAt = DateTime.UtcNow,
+                ScheduleDataJson = JsonConvert.SerializeObject(modifiedSchedule)
+            };
+
+            await _userScheduleRepository.Create(schedule);
+            await _userScheduleRepository.Commit();
+
+            return Ok(new { success = true, scheduleId = schedule.Id });
+        }
     }
 }

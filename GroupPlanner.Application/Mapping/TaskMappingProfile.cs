@@ -5,7 +5,9 @@ using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
+using GroupPlanner.Application.UserSchedule;
 using GroupPlanner.Domain.Entities;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -56,7 +58,15 @@ namespace GroupPlanner.Application.Mapping
             CreateMap<GroupPlanner.Application.AlgorithmResult.AlgorithmResultDto, GroupPlanner.Domain.Entities.AlgorithmResult>()
                 .ForMember(dest => dest.Algorithm, opt => opt.MapFrom(src => src.Algorithm));
 
-            
+            // User Schedule
+            CreateMap<Domain.Entities.UserSchedule, UserScheduleDto>()
+                .ForMember(dto => dto.Entries,
+                    opt => opt.MapFrom(src => JsonConvert.DeserializeObject<List<ScheduleEntryDto>>(src.ScheduleDataJson)));
+
+            CreateMap<UserScheduleDto, Domain.Entities.UserSchedule>()
+                .ForMember(dest => dest.ScheduleDataJson,
+                    opt => opt.MapFrom(src => JsonConvert.SerializeObject(src.Entries)));
+
 
 
         }

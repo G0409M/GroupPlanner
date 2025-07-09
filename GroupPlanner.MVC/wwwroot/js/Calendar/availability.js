@@ -217,4 +217,38 @@
 
         calendar.refetchEvents();
     });
+
+    $('#saveScheduleBtn').on('click', function () {
+        const events = calendar.getEvents();
+
+        const schedule = events
+            .filter(e => e.extendedProps?.isPlanned)
+            .map(e => ({
+                Date: e.startStr,
+                Hours: e.extendedProps.hours,
+                SubtaskDescription: e.extendedProps.subtaskDescription,
+                Subtask: {
+                    Id: e.extendedProps.subtaskId // 👈 KLUCZOWE: ID subtaska potrzebne do uzupełnienia po stronie backendu
+                }
+            }));
+        if (schedule.length === 0) {
+            alert("There are no planned tasks to save.");
+            return;
+        }
+
+        $.ajax({
+            url: '/Calendar/SaveUserSchedule',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(schedule),
+            success: function (response) {
+                alert('Schedule saved successfully!');
+                console.log('Saved schedule id:', response.scheduleId);
+            },
+            error: function () {
+                alert('Failed to save schedule.');
+            }
+        });
+    });
+
 });

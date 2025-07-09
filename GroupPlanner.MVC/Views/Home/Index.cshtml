@@ -1,8 +1,84 @@
-﻿@{
-    ViewData["Title"] = "Home";
-}
-
-<div class="text-center mt-5">
-    <h1>Welcome to Time Planner</h1>
-    <p class="lead">Select an option from the menu to get started.</p>
+﻿@using Newtonsoft.Json
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card kpi-card completed">
+            <div class="card-body text-center">
+                <div class="text-success fw-bold">✅ Completed</div>
+                <div class="h3 mt-2">@Model.KPI.CompletedCount</div>
+                <div class="small text-muted">@Model.KPI.CompletedPercent% of all</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card inprogress">
+            <div class="card-body text-center">
+                <div class="text-warning fw-bold">🕒 In Progress</div>
+                <div class="h3 mt-2">@Model.KPI.InProgressCount</div>
+                <div class="small text-muted">@Model.KPI.InProgressPercent% of all</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card notstarted">
+            <div class="card-body text-center">
+                <div class="text-danger fw-bold">❌ Not Started</div>
+                <div class="h3 mt-2">@Model.KPI.NotStartedCount</div>
+                <div class="small text-muted">@Model.KPI.NotStartedPercent% of all</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card hours">
+            <div class="card-body text-center">
+                <div class="text-primary fw-bold">📊 Hours</div>
+                <div class="h3 mt-2">@Model.KPI.TotalWorked / @Model.KPI.TotalEstimated</div>
+                <div class="small text-muted">Worked / Estimated</div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Second Row -->
+<div class="row g-3">
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light fw-bold">📌 Subtask status</div>
+            <div class="card-body text-center pie-card">
+                <canvas id="statusPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light fw-bold">📆 This Month</div>
+            <div class="card-body">
+                <div id="dashboardMiniCalendar"></div>
+                <small class="text-muted d-block mt-2 text-center">Each dot = 1h planned work</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-light d-flex align-items-center">
+            <i class="bi bi-calendar-event me-2 text-primary"></i>
+            <strong>Upcoming task day</strong>
+        </div>
+        <div class="card-body" id="upcomingTasksContainer">
+            <div class="text-center text-muted">Loading...</div>
+        </div>
+    </div>
+
+   
+</div>
+<script>
+    window.subtasksKPI = @Html.Raw(JsonConvert.SerializeObject(Model.KPI));
+    window.plannedEntries = @Html.Raw(JsonConvert.SerializeObject(Model.PlannedEntries));
+    window.userSchedule = @Html.Raw(JsonConvert.SerializeObject(ViewBag.GroupedSchedule));
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script src="~/js/Home/home.js"></script>
+
+

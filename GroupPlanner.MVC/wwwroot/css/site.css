@@ -123,3 +123,47 @@ body {
 .btn, .modal {
     transition: 0.3s all;
 }
+.mini-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    font-size: 12px;
+    text-align: center;
+    justify-items: center;
+    padding: 10px;
+}
+
+.mini-calendar-header {
+    font-weight: bold;
+    padding: 4px 0;
+    color: #555;
+}
+
+.mini-calendar-cell {
+    width: 32px;
+    height: 40px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 2px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: start;
+    font-size: 11px;
+    position: relative;
+}
+
+.mini-day {
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.dots {
+    font-size: 10px;
+    line-height: 10px;
+    color: #007bff;
+}
+
+.mini-calendar-cell.empty {
+    background-color: transparent;
+}

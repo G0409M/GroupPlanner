@@ -90,7 +90,8 @@ namespace GroupPlanner.Infrastructure.Repositories
         public async Task<IEnumerable<Subtask>> GetAllByUserId(string userId)
         {
             return await _dbContext.Subtasks
-                .Include(s => s.Task) 
+                .Include(s => s.Task)
+                .ThenInclude(t => t.Details)
                 .Where(s => s.Task.CreatedById == userId)
                 .ToListAsync();
         }
@@ -139,6 +140,12 @@ namespace GroupPlanner.Infrastructure.Repositories
 
             await _dbContext.SaveChangesAsync();
             await _dbContext.Entry(task).ReloadAsync();
+        }
+        public async Task<List<Subtask>> GetByIds(List<int> ids)
+        {
+            return await _dbContext.Subtasks
+                .Where(s => ids.Contains(s.Id))
+                .ToListAsync();
         }
 
 

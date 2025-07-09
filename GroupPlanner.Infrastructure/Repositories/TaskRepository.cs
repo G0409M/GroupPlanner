@@ -31,9 +31,11 @@ namespace GroupPlanner.Infrastructure.Repositories
 
         public Task<Domain.Entities.Task?> GetByName(string name)
             => _dbContext.Tasks.FirstOrDefaultAsync(cw=> cw.Name.ToLower()==name.ToLower());
-        public async Task<IEnumerable<Domain.Entities.Task>> GetAllByUserId(string userId)  // Poprawiony typ zwracany
+        public async Task<IEnumerable<Domain.Entities.Task>> GetAllByUserId(string userId)
         {
             return await _dbContext.Tasks
+                .Include(t => t.Subtasks)
+                .Include(t => t.Details)
                 .Where(t => t.CreatedById == userId)
                 .ToListAsync();
         }

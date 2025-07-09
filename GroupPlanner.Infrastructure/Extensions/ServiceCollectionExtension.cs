@@ -34,6 +34,8 @@ namespace GroupPlanner.Infrastructure.Extensions
             services.AddScoped<IDailyAvailabilityRepository, DailyAvailabilityRepository>(); 
             services.AddScoped<IAlgorithmResultRepository, AlgorithmResultRepository>();
             services.AddScoped<IAntAlgorithmService, AntAlgorithmService>();
+            services.AddScoped<IUserScheduleRepository, UserScheduleRepository>();
+
 
 
 
