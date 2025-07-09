@@ -20,16 +20,13 @@ Calendar site:
 Algorithm Results site:
 ![image](https://github.com/user-attachments/assets/9858c54d-de38-4d37-b4a4-de660631985a)
 run:
-![image](https://github.com/user-attachments/assets/c8bc0a2a-5f25-43a1-9f9a-5400c5019c0c)
 ![image](https://github.com/user-attachments/assets/14d4a9d0-aad2-4085-8bdd-d083a46b5f4c)
-
-details:
-![image](https://github.com/user-attachments/assets/f2bbc300-aad3-47f2-b418-624c5063655b)
 ![image](https://github.com/user-attachments/assets/5cc68994-2bb4-46f8-8e05-e97a47fc3b0d)
 
+details:
 
-
-
+![image](https://github.com/user-attachments/assets/c8bc0a2a-5f25-43a1-9f9a-5400c5019c0c)
+![image](https://github.com/user-attachments/assets/f2bbc300-aad3-47f2-b418-624c5063655b)
 
 Login Page:
-![image](https://github.com/user-attachments/assets/2bf0c7c5-bf10-4e04-928e-9e501d81ea5c)
+![image](https://github.com/user-attachments/assets/a5895f95-8212-4454-ad5a-194ba2cde538)
