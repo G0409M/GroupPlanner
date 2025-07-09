@@ -12,5 +12,7 @@ namespace GroupPlanner.MVC.Models
         public List<ScheduleEntryDto> PlannedEntries { get; set; } = new();
         public List<ScheduleEntryDto> UpcomingTasks { get; set; } = new();
         public KPIViewModel KPI { get; set; } = new();
+        public List<UpcomingDayDto> UpcomingDays { get; set; } = new();
     }
+   
 }

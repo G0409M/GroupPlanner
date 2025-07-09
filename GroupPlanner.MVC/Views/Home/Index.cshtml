@@ -1,36 +1,44 @@
 ﻿@using Newtonsoft.Json
-<div class="row g-3 mb-4">
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<!-- KPI Section -->
+<div class="row g-3 mb-3">
     <div class="col-md-3">
-        <div class="card kpi-card completed">
+        <div class="card kpi-card completed h-100">
             <div class="card-body text-center">
-                <div class="text-success fw-bold">✅ Completed</div>
+                <i data-lucide="check-circle" class="text-success mb-2" style="width: 20px; height: 20px;"></i>
+                <div class="fw-bold text-success">Completed</div>
                 <div class="h3 mt-2">@Model.KPI.CompletedCount</div>
                 <div class="small text-muted">@Model.KPI.CompletedPercent% of all</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card kpi-card inprogress">
+        <div class="card kpi-card inprogress h-100">
             <div class="card-body text-center">
-                <div class="text-warning fw-bold">🕒 In Progress</div>
+                <i data-lucide="hourglass" class="text-warning mb-2" style="width: 20px; height: 20px;"></i>
+                <div class="fw-bold text-warning">In Progress</div>
                 <div class="h3 mt-2">@Model.KPI.InProgressCount</div>
                 <div class="small text-muted">@Model.KPI.InProgressPercent% of all</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card kpi-card notstarted">
+        <div class="card kpi-card notstarted h-100">
             <div class="card-body text-center">
-                <div class="text-danger fw-bold">❌ Not Started</div>
+                <i data-lucide="x-circle" class="text-danger mb-2" style="width: 20px; height: 20px;"></i>
+                <div class="fw-bold text-danger">Not Started</div>
                 <div class="h3 mt-2">@Model.KPI.NotStartedCount</div>
                 <div class="small text-muted">@Model.KPI.NotStartedPercent% of all</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card kpi-card hours">
+        <div class="card kpi-card hours h-100">
             <div class="card-body text-center">
-                <div class="text-primary fw-bold">📊 Hours</div>
+                <i data-lucide="bar-chart-3" class="text-primary mb-2" style="width: 20px; height: 20px;"></i>
+                <div class="fw-bold text-primary">Hours</div>
                 <div class="h3 mt-2">@Model.KPI.TotalWorked / @Model.KPI.TotalEstimated</div>
                 <div class="small text-muted">Worked / Estimated</div>
             </div>
@@ -38,38 +46,106 @@
     </div>
 </div>
 
-<!-- Second Row -->
-<div class="row g-3">
-    <div class="col-md-3">
-        <div class="card shadow-sm">
-            <div class="card-header bg-light fw-bold">📌 Subtask status</div>
-            <div class="card-body text-center pie-card">
+<!-- Dashboard Grid -->
+<div class="row g-3 pb-3">
+
+    <!-- Left Column: Two Pie Charts -->
+    <div class="col-lg-4 col-md-12 d-flex flex-column">
+        <div class="card shadow-sm mb-3 flex-fill chart-card" style="height: 300px;">
+            <div class="card-header bg-light fw-bold">
+                <i data-lucide="pie-chart" class="me-1" style="width: 18px; height: 18px;"></i>
+                Subtask Status
+            </div>
+            <div class="card-body p-2 d-flex justify-content-center align-items-center">
                 <canvas id="statusPieChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card shadow-sm flex-fill chart-card" style="height: 300px;">
+            <div class="card-header bg-light fw-bold">
+                <i data-lucide="timer" class="me-1" style="width: 18px; height: 18px;"></i>
+                Remaining Time per Task
+            </div>
+            <div class="card-body p-2 d-flex justify-content-center align-items-center">
+                <canvas id="remainingPieChart"></canvas>
             </div>
         </div>
     </div>
 
-    <div class="col-md-5">
-        <div class="card shadow-sm">
-            <div class="card-header bg-light fw-bold">📆 This Month</div>
+    <!-- Middle Column: Upcoming 3 Days -->
+    <div class="col-lg-4 col-md-6">
+        <div class="card shadow-sm h-100" style="height: 610px;">
+            <div class="card-header bg-light fw-bold">
+                <i data-lucide="calendar-days" class="me-1" style="width: 18px; height: 18px;"></i>
+                Upcoming 3 Days
+            </div>
+            <div class="card-body overflow-auto">
+                @if (Model.UpcomingDays.Count == 0)
+                {
+                    <div class="text-muted">No upcoming scheduled entries.</div>
+                }
+                else
+                {
+                    foreach (var day in Model.UpcomingDays)
+                    {
+                        <div class="mb-3">
+                            <h6 class="text-primary">@day.Date.ToString("dddd, dd MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</h6>
+                            <ul class="list-group">
+                                @foreach (var entry in day.Entries)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                                        <div class="flex-grow-1">
+                                            <strong>@entry.TaskName</strong><br />
+                                            <small>@entry.SubtaskDescription</small>
+                                        </div>
+                                        <div class="text-nowrap ms-2 me-2 fw-bold">@entry.Hours h</div>
+                                        @if (entry.WorkedHours >= entry.Hours)
+                                        {
+                                            <button class="btn btn-success btn-sm px-3 py-1" disabled>
+                                                <i data-lucide="check" class="me-1" style="width: 16px; height: 16px;"></i> Done
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-outline-success btn-sm px-3 py-1 markWorkedByHours"
+                                                    data-subtask-id="@entry.SubtaskId"
+                                                    data-hours="@entry.Hours">
+                                                <i data-lucide="plus-circle" class="me-1" style="width: 16px; height: 16px;"></i> Mark (+@entry.Hours h)
+                                            </button>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: This Month Calendar -->
+    <div class="col-lg-4 col-md-6">
+        <div class="card shadow-sm h-100" style="height: 610px;">
+            <div class="card-header bg-light fw-bold">
+                <i data-lucide="calendar" class="me-1" style="width: 18px; height: 18px;"></i>
+                This Month
+            </div>
             <div class="card-body">
                 <div id="dashboardMiniCalendar"></div>
                 <small class="text-muted d-block mt-2 text-center">Each dot = 1h planned work</small>
             </div>
         </div>
     </div>
-
-
-   
 </div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 <script>
+    lucide.createIcons();
     window.subtasksKPI = @Html.Raw(JsonConvert.SerializeObject(Model.KPI));
     window.plannedEntries = @Html.Raw(JsonConvert.SerializeObject(Model.PlannedEntries));
     window.userSchedule = @Html.Raw(JsonConvert.SerializeObject(ViewBag.GroupedSchedule));
-
+    window.taskRemainingData = @Html.Raw(JsonConvert.SerializeObject(ViewBag.TaskRemainingData));
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script src="~/js/Home/home.js"></script>
-
-

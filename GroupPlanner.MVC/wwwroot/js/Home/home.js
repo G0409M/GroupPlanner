@@ -14,7 +14,7 @@
                     window.subtasksKPI.InProgressCount || 0,
                     window.subtasksKPI.NotStartedCount || 0
                 ],
-                backgroundColor: ["#4caf50", "#ff9800", "#f44336"],
+                backgroundColor: ["#81c784", "#ffd54f", "#e57373"], // pastelowe kolory
                 borderWidth: 2
             }]
         };
@@ -30,12 +30,71 @@
                 responsive: true,
                 plugins: {
                     legend: {
-                        position: 'bottom',
+                        position: 'left',
                         labels: {
                             usePointStyle: true,
-                            pointStyle: 'circle'
+                            pointStyle: 'circle',
+                            padding: 15,
+                            font: {
+                                size: 13,
+                                weight: 'bold'
+                            }
                         }
                     }
+                },
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                }
+            }
+        });
+    }
+
+    // =========================
+    // ⏳ Remaining Time per Task – Pie Chart
+    // =========================
+    const remainingPie = document.getElementById('remainingPieChart');
+    if (remainingPie && Array.isArray(window.taskRemainingData)) {
+        const pieLabels = window.taskRemainingData.map(t => t.TaskName || "(no name)");
+        const pieValues = window.taskRemainingData.map(t => t.Remaining || 0);
+
+        const colors = [
+            '#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
+            '#59a14f', '#edc949', '#af7aa1', '#ff9da7',
+            '#9c755f', '#bab0ab'
+        ];
+
+        if (Chart.getChart("remainingPieChart")) {
+            Chart.getChart("remainingPieChart").destroy();
+        }
+
+        new Chart(remainingPie.getContext("2d"), {
+            type: 'pie',
+            data: {
+                labels: pieLabels,
+                datasets: [{
+                    data: pieValues,
+                    backgroundColor: colors,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'left',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 15
+                        }
+                    },
+                    
+                },
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
                 }
             }
         });
@@ -63,16 +122,11 @@
         const daysInMonth = lastDay.getDate();
         const startWeekday = (firstDay.getDay() + 6) % 7;
 
-        let html = `
-            <div class="mini-calendar-grid">
-                <div class="mini-calendar-header">Mon</div>
-                <div class="mini-calendar-header">Tue</div>
-                <div class="mini-calendar-header">Wed</div>
-                <div class="mini-calendar-header">Thu</div>
-                <div class="mini-calendar-header">Fri</div>
-                <div class="mini-calendar-header">Sat</div>
-                <div class="mini-calendar-header">Sun</div>
-        `;
+        let html = `<div class="mini-calendar-grid">`;
+        const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        for (const day of weekDays) {
+            html += `<div class="mini-calendar-header">${day}</div>`;
+        }
 
         for (let i = 0; i < startWeekday; i++) {
             html += `<div class="mini-calendar-cell empty"></div>`;
@@ -95,4 +149,28 @@
         calendarEl.innerHTML = html;
     }
 
+    // =========================
+    // ✅ Handle Mark as Done Click
+    // =========================
+    document.addEventListener('click', function (e) {
+        const button = e.target.closest('.markWorkedByHours');
+        if (!button) return;
+
+        const subtaskId = parseInt(button.getAttribute('data-subtask-id'));
+        const hours = parseInt(button.getAttribute('data-hours'));
+
+        if (!subtaskId || !hours) return;
+
+        fetch('/Home/MarkWorkedByHours', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subtaskId, hours })
+        })
+            .then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => {
+                if (data.success) location.reload();
+                else alert("Update failed.");
+            })
+            .catch(() => alert("Error updating worked hours"));
+    });
 });

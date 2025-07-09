@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using GroupPlanner.Application.Algorithms;
 using GroupPlanner.Application.ApplicationUser;
 using GroupPlanner.Application.Subtask;
@@ -35,14 +35,16 @@ namespace GroupPlanner.MVC.Controllers
             _mapper = mapper;
         }
 
+
         public async Task<IActionResult> Index()
         {
             var user = _userContext.GetCurrentUser();
             if (user == null) return Unauthorized();
 
-            // Pobierz wszystkie zadania z podzadaniami
+            // Pobierz wszystkie zadania użytkownika
             var tasks = await _taskRepository.GetAllByUserId(user.Id);
 
+            // Zmapuj podzadania wraz z dodatkowymi informacjami
             var subtasks = tasks.SelectMany(t =>
             {
                 var taskEncoded = t.EncodedName;
@@ -55,9 +57,10 @@ namespace GroupPlanner.MVC.Controllers
                 });
             }).ToList();
 
+            // Mapa nazw zadań
             var taskNameMap = tasks.ToDictionary(t => t.EncodedName!, t => t.Name);
 
-            // KPI
+            // Statystyki KPI
             var total = subtasks.Count;
             var completed = subtasks.Count(s => s.ProgressStatus == ProgressStatus.Completed);
             var inProgress = subtasks.Count(s => s.ProgressStatus == ProgressStatus.InProgress);
@@ -65,7 +68,7 @@ namespace GroupPlanner.MVC.Controllers
             var totalEstimated = subtasks.Sum(s => s.EstimatedTime);
             var totalWorked = subtasks.Sum(s => s.WorkedHours);
 
-            // Pobierz harmonogram u�ytkownika z bazy (dla kropek w kalendarzu)
+            // Odczyt harmonogramu użytkownika z bazy
             var latestSchedule = await _userScheduleRepository.GetLatestByUserId(user.Id);
             List<ScheduleEntryDto> plannedEntries = new();
             if (latestSchedule != null && !string.IsNullOrEmpty(latestSchedule.ScheduleDataJson))
@@ -74,6 +77,36 @@ namespace GroupPlanner.MVC.Controllers
                                  ?? new List<ScheduleEntryDto>();
             }
 
+            // Aktualizacja workedHours z bazy (by zgadzało się z bieżącymi danymi)
+            foreach (var entry in plannedEntries)
+            {
+                if (entry.Subtask != null)
+                {
+                    var subtaskId = entry.Subtask.Id;
+                    var latest = subtasks.FirstOrDefault(s => s.Id == subtaskId);
+                    if (latest != null)
+                    {
+                        entry.Subtask.WorkedHours = latest.WorkedHours;
+                    }
+                }
+            }
+
+            // ✅ Remaining time per task (dla wykresu)
+            // ✅ Oblicz dane dla wykresu "Remaining Time per Task" bazując na danych z tasks
+            var taskRemainingData = tasks
+                .Where(t => t.Subtasks != null && t.Subtasks.Any())
+                .Select(t => new
+                {
+                    TaskName = t.Name,
+                    Remaining = t.Subtasks.Sum(st => Math.Max(st.EstimatedTime - st.WorkedHours, 0))
+                })
+                .Where(t => t.Remaining > 0)
+                .ToList();
+
+            ViewBag.TaskRemainingData = taskRemainingData;
+
+
+            // Model do widoku
             var model = new DashboardViewModel
             {
                 Subtasks = subtasks,
@@ -92,7 +125,53 @@ namespace GroupPlanner.MVC.Controllers
                 }
             };
 
+            // Sekcja "Upcoming 3 days"
+            var upcomingDays = plannedEntries
+                .Where(e => e.Date >= DateTime.Today && e.Subtask != null)
+                .GroupBy(e => e.Date.Date)
+                .OrderBy(g => g.Key)
+                .Take(3)
+                .Select(g => new UpcomingDayDto
+                {
+                    Date = g.Key,
+                    Entries = g.Select(e => new UpcomingEntryDto
+                    {
+                        TaskName = e.Subtask!.TaskEncodedName != null && taskNameMap.TryGetValue(e.Subtask.TaskEncodedName, out var name) ? name : "(unknown)",
+                        SubtaskDescription = e.Subtask.Description ?? "(no description)",
+                        Hours = e.Hours,
+                        SubtaskId = e.Subtask.Id,
+                        WorkedHours = e.Subtask.WorkedHours
+                    }).ToList()
+                }).ToList();
+
+            model.UpcomingDays = upcomingDays;
+
             return View(model);
         }
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> MarkWorkedByHours([FromBody] MarkWorkedRequest request)
+        {
+            var user = _userContext.GetCurrentUser();
+            if (user == null) return Unauthorized();
+
+            var subtask = await _subtaskRepository.GetByIdAsync(request.SubtaskId);
+            if (subtask == null) return NotFound();
+
+            int updatedHours = subtask.WorkedHours + request.Hours;
+            await _subtaskRepository.UpdateWorkedHours(request.SubtaskId, updatedHours);
+
+            return Json(new { success = true });
+        }
+
+
+
+    }
+    public class MarkWorkedRequest
+    {
+        public int SubtaskId { get; set; }
+        public int Hours { get; set; }
     }
 }

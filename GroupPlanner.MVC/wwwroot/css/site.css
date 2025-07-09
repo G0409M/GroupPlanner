@@ -28,19 +28,17 @@ body {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    font-size: 13px; /* nieco mniejsza czcionka */
-    padding: 10px; /* mniej paddingu */
+    font-size: 13px;
+    padding: 10px;
     border-radius: 8px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     background-color: #fff;
 }
 
-/* zmniejszamy wysokoœæ komórek w daygrid */
 .fc-daygrid-day-frame {
-    min-height: 50px; /* normalnie to oko³o 100px */
+    min-height: 50px;
 }
 
-/* zmniejszamy odstêpy */
 .fc-daygrid-event {
     margin: 1px;
     padding: 1px;
@@ -51,12 +49,9 @@ body {
     font-size: 11px;
 }
 
-
 .fc .fc-toolbar-title {
     font-size: 1.2em;
 }
-
-.
 
 /* Modal Styling */
 .modal-content {
@@ -107,7 +102,19 @@ body {
         transform: scale(1.05);
     }
 
-/* Toast Notification for Success Messages */
+.btn-outline-success {
+    border-radius: 20px;
+    font-size: 13px;
+    padding: 5px 12px;
+}
+
+.btn-success {
+    border-radius: 20px;
+    font-size: 13px;
+    padding: 5px 12px;
+}
+
+/* Toast Notification */
 .toast {
     position: fixed;
     bottom: 20px;
@@ -123,6 +130,8 @@ body {
 .btn, .modal {
     transition: 0.3s all;
 }
+
+/* Mini Calendar */
 .mini-calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -166,4 +175,123 @@ body {
 
 .mini-calendar-cell.empty {
     background-color: transparent;
+}
+
+/* Dashboard layout (grid between KPI + other sections) */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* KPI Cards */
+.kpi-box {
+    background-color: #fff;
+    padding: 0.75rem;
+    flex: 1 1 45%;
+    min-width: 160px;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    border: 1px solid #dee2e6;
+    transition: transform 0.2s ease;
+}
+
+    .kpi-box:hover {
+        transform: scale(1.02);
+    }
+
+/* Pie chart wrapper */
+.pie-card {
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Upcoming 3 Days section */
+.upcoming-entry .list-group-item {
+    padding: 0.6rem 0.75rem;
+    font-size: 14px;
+}
+
+.upcoming-entry .badge {
+    font-size: 12px;
+    padding: 0.35em 0.6em;
+}
+
+.kpi-card .card-body {
+    padding: 0.75rem 0.5rem;
+}
+
+.upcoming-entry .list-group-item {
+    padding: 0.75rem 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin-bottom: 6px;
+}
+
+.markWorkedByHours {
+    min-width: 140px;
+    text-align: center;
+}
+
+.card-header {
+    font-weight: bold;
+    font-size: 1rem;
+    background-color: #f0f2f5;
+    color: #333;
+}
+.mini-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.mini-calendar-header {
+    font-weight: bold;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.mini-calendar-cell {
+    padding: 4px 2px;
+    border-radius: 6px;
+    background-color: #f9f9f9;
+    min-height: 45px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+    .mini-calendar-cell .mini-day {
+        font-weight: 600;
+    }
+
+    .mini-calendar-cell .dots {
+        font-size: 0.7rem;
+        color: #007bff;
+        line-height: 1;
+    }
+
+    .mini-calendar-cell.empty {
+        background-color: transparent;
+    }
+    .chart-card canvas {
+    max-height: 140px;
+}
+.chart-card .card-body {
+    text-align: left;
+}
+.card {
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }

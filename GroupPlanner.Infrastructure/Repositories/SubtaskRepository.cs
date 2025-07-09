@@ -137,6 +137,7 @@ namespace GroupPlanner.Infrastructure.Repositories
             {
                 task.ProgressStatus = ProgressStatus.InProgress;
             }
+            Console.WriteLine($"Updated: {subtask.Id} -> {subtask.WorkedHours} h, status = {subtask.ProgressStatus}");
 
             await _dbContext.SaveChangesAsync();
             await _dbContext.Entry(task).ReloadAsync();
