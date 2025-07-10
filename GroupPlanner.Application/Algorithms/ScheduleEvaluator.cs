@@ -17,13 +17,12 @@ namespace GroupPlanner.Application.Algorithms
         {
             int score = 0;
 
-            // grupowanie po podzadaniu
             var groupedBySubtask = schedule
                 .Where(h => h.Subtask != null)
                 .GroupBy(h => h.Subtask)
                 .ToDictionary(g => g.Key, g => g.OrderBy(h => h.Date).ToList());
 
-            // 1️⃣ punkty za pełne przypisanie godzin
+            
             foreach (var sub in subtasks)
             {
                 var entries = groupedBySubtask.ContainsKey(sub)
@@ -33,15 +32,15 @@ namespace GroupPlanner.Application.Algorithms
                 int total = entries.Sum(e => e.Hours);
                 if (total == sub.EstimatedTime)
                 {
-                    score += 50; // premia za komplet
+                    score += 50; 
                 }
                 else
                 {
-                    score -= 20; // kara za brak godzin
+                    score -= 20; 
                 }
             }
 
-            // 2️⃣ punkty za przestrzeganie kolejności
+            
             var groupedByTask = subtasks.GroupBy(x => x.TaskEncodedName);
             foreach (var taskGroup in groupedByTask)
             {
@@ -58,18 +57,18 @@ namespace GroupPlanner.Application.Algorithms
 
                     if (lastEnd.HasValue && earliest < lastEnd.Value)
                     {
-                        score -= 100; // mocna kara
+                        score -= 100; 
                     }
                     else
                     {
-                        score += 30; // premia za poprawną kolejność
+                        score += 30; 
                     }
 
                     lastEnd = subEntries.Last().Date;
                 }
             }
 
-            // 3️⃣ punkty za przestrzeganie deadline
+            
             foreach (var task in tasks)
             {
                 var taskEntries = schedule
@@ -78,7 +77,7 @@ namespace GroupPlanner.Application.Algorithms
 
                 if (!taskEntries.Any())
                 {
-                    score -= 100; // kara brak planu
+                    score -= 100; 
                     continue;
                 }
 
@@ -93,7 +92,7 @@ namespace GroupPlanner.Application.Algorithms
                 }
             }
 
-            // 4️⃣ punkty za brak przekroczenia dostępności
+            
             var dayStats = schedule
                 .GroupBy(e => e.Date)
                 .Select(g => new
@@ -108,15 +107,15 @@ namespace GroupPlanner.Application.Algorithms
             {
                 if (day.Used > day.Available)
                 {
-                    score -= 100; // kara za nadgodziny
+                    score -= 100; 
                 }
                 else
                 {
-                    score += 10; // premia
+                    score += 10; 
                 }
             }
 
-            // 5️⃣ punkty za skupienie godzin (jedno podzadanie na dzień)
+            
             foreach (var sub in subtasks)
             {
                 var entries = groupedBySubtask.ContainsKey(sub)
@@ -127,19 +126,19 @@ namespace GroupPlanner.Application.Algorithms
 
                 if (uniqueDays <= 2)
                 {
-                    score += 30; // super
+                    score += 30; 
                 }
                 else if (uniqueDays <= 4)
                 {
-                    score += 10; // ok
+                    score += 10; 
                 }
                 else
                 {
-                    score -= 20; // rozproszone
+                    score -= 20;
                 }
             }
 
-            // 6️⃣ punktacja za równomierne rozłożenie (jakość planu)
+           
             if (dayStats.Any())
             {
                 var avgLoad = dayStats.Average(x => (double)x.Used / x.Available);

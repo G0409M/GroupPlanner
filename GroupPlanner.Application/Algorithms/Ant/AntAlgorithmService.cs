@@ -14,7 +14,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
         public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities,AntAlgorithmParameters parameters,
                     Func<int, double, System.Threading.Tasks.Task>? reportProgress = null)
         {
-            // --- INICJALIZACJA FEROMONÓW ---
+            
             var pheromone = new Dictionary<(string sub, DateTime d), double>();
             foreach (var sub in subtasks)
                 foreach (var day in availabilities)
@@ -29,7 +29,6 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 var solutions = new List<List<ScheduleEntryDto>>();
                 var scores = new List<double>();
 
-                // ► ZMIENIONE q₀: zaczynamy od 0.2, dochodzimy do 0.8
                 double q0 = 0.2 + 0.4 * ((double)iter / (parameters.Iterations - 1));
 
                 for (int k = 0; k < parameters.AntCount; k++)
@@ -56,14 +55,13 @@ namespace GroupPlanner.Application.Algorithms.Ant
                     }
                 }
 
-                // ► Dajemy wyższy domyślny evaporationRate w parametrach (np. 0.3–0.5),
-                //    ale możesz tutaj zrobić dodatkowo mnożenie, żeby feromony szybciej zanikały:
+                
                 UpdatePheromones(
                     pheromone,
                     solutions,
                     scores,
-                    parameters.Q,          // zmniejszamy Q o połowę
-                    parameters.EvaporationRate, // przyspieszamy parowanie
+                    parameters.Q,         
+                    parameters.EvaporationRate, 
                     availabilities
                 );
 
@@ -83,7 +81,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
         }
 
 
-        // ► 1. Budowanie rozwiązania
+        
         private List<ScheduleEntryDto> BuildAntSchedule(Dictionary<(string sub, DateTime d), double> pheromone, List<SubtaskDto> subs,List<DailyAvailabilityDto> av,
         List<TaskDto> tasks,double alpha, double beta,double q0, Random rnd)
         {
@@ -155,32 +153,32 @@ namespace GroupPlanner.Application.Algorithms.Ant
         }
 
 
-        // ► 2. Faza naprawcza – przenosi nadmiary w luźniejsze dni
+        
         private void RepairSchedule(List<ScheduleEntryDto> sched,Dictionary<DateTime, AvailableDay> work, List<DailyAvailabilityDto> av)
         {
-            // a) nadgodziny – przesuwaj najmniejsze bloki w pierwsze wolne miejsce
+            
             foreach (var g in sched.GroupBy(s => s.Date))
             {
                 double used = g.Sum(x => x.Hours);
                 double cap = av.First(d => d.Date == g.Key).AvailableHours;
-                if (used <= cap) continue;                           // OK
+                if (used <= cap) continue;                           
 
-                // sortuj od najmniejszych bloków – łatwiej upchnąć
+               
                 foreach (var entry in g.OrderBy(e => e.Hours).ToList())
                 {
-                    // znajdź pierwszy dzień z wolnym slotem
+                    
                     var target = work.Values.FirstOrDefault(d => d.HoursLeft >= entry.Hours);
-                    if (target == null) break;                       // trudno – zostanie overrun
+                    if (target == null) break;                      
 
                     work[target.Date].HoursLeft -= entry.Hours;
-                    work[entry.Date].HoursLeft += entry.Hours;      // zwalniamy
+                    work[entry.Date].HoursLeft += entry.Hours;      
                     entry.Date = target.Date;
                     used -= entry.Hours;
                     if (used <= cap) break;
                 }
             }
 
-            // b) nieprzydzielone bloki – wrzucamy gdzie się da (po terminie → większa kara)
+            
             foreach (var (sub, h) in _unplaced)
             {
                 int left = h;
@@ -198,27 +196,25 @@ namespace GroupPlanner.Application.Algorithms.Ant
             _unplaced.Clear();
         }
 
-        // pole prywatne w klasie AntAlgorithmService
+       
         private readonly List<(SubtaskDto sub, int hours)> _unplaced = new();
 
-        // ► 3. Feromony – premia tylko za CAŁE subtaski
         private void UpdatePheromones(Dictionary<(string sub, DateTime d), double> pher,List<List<ScheduleEntryDto>> ants,List<double> scores,
         double Q, double evap,List<DailyAvailabilityDto> av)
         {
             const double min = 0.1, max = 5.0;
-            // parowanie
+            
             foreach (var key in pher.Keys.ToList())
                 pher[key] = Math.Max(min, pher[key] * (1 - evap));
 
-            // wzmocnienie
+            
             for (int i = 0; i < ants.Count; i++)
             {
                 double delta = Q * scores[i];
-                // Twoja logika podzadaniowa...
+               
                 foreach (var e in ants[i])
                 {
-                    // tylko gdy subtask w całości
-                    // ...
+                    
                     var key = (e.Subtask!.TaskEncodedName!, e.Date);
                     pher[key] = Math.Min(max, pher[key] + delta);
                 }

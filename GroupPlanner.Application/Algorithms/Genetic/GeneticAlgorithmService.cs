@@ -291,7 +291,6 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                     }
                 }
 
-                // fallback
                 while (remaining > 0)
                 {
                     var candidateDays = availableDays
@@ -349,11 +348,11 @@ namespace GroupPlanner.Application.Algorithms.Genetic
 
         private void Mutate(List<ScheduleEntryDto> schedule,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availability,Random random)
         {
-            // stworzenie słownika pozostałych godzin
+            
             var dayHoursLeft = availability
                 .ToDictionary(a => a.Date, a => a.AvailableHours);
 
-            // odejmij godziny już zajęte w harmonogramie
+           
             foreach (var s in schedule.Where(x => x.Subtask != null))
             {
                 dayHoursLeft[s.Date] -= s.Hours;
@@ -366,11 +365,11 @@ namespace GroupPlanner.Application.Algorithms.Genetic
             {
                 var entry = taskSubentries[random.Next(taskSubentries.Count)];
 
-                // oddaj godziny z powrotem
+                
                 dayHoursLeft[entry.Date] += entry.Hours;
                 schedule.Remove(entry);
 
-                // próbujemy znaleźć nowy dzień
+               
                 var candidateDays = dayHoursLeft
                     .Where(kv => kv.Value > 0)
                     .Select(kv => kv.Key)
@@ -391,7 +390,7 @@ namespace GroupPlanner.Application.Algorithms.Genetic
 
                     dayHoursLeft[newDay] -= hoursToAssign;
 
-                    // jeżeli jeszcze zostało
+                    
                     int leftover = entry.Hours - hoursToAssign;
                     if (leftover > 0)
                     {
@@ -406,7 +405,7 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                 }
                 else
                 {
-                    // nie udało się — przywróć tak jak było
+                    
                     schedule.Add(entry);
                     dayHoursLeft[entry.Date] -= entry.Hours;
                 }
@@ -420,7 +419,7 @@ namespace GroupPlanner.Application.Algorithms.Genetic
             {
                 Date = entry.Date,
                 Hours = entry.Hours,
-                Subtask = entry.Subtask // lub clone SubtaskDto jeśli potrzebne
+                Subtask = entry.Subtask 
             };
         }
 

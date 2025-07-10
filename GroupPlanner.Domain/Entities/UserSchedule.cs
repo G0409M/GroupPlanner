@@ -13,9 +13,9 @@ namespace GroupPlanner.Domain.Entities
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public string Name { get; set; } = "Your Schedule"; // Możesz pozwolić użytkownikowi zmienić
+        public string Name { get; set; } = "Your Schedule"; 
 
-        public string ScheduleDataJson { get; set; } = default!; // JSON lista ScheduleEntryDto
+        public string ScheduleDataJson { get; set; } = default!; 
         public string? CreatedById { get; set; }
         public IdentityUser? CreatedBy { get; set; }
     }

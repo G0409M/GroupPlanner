@@ -8,11 +8,11 @@ namespace GroupPlanner.Application.Algorithms.Ant
 {
     public class AntAlgorithmParameters
     {
-        public int Iterations { get; set; } = 50;
-        public int AntCount { get; set; } = 20;
-        public double Alpha { get; set; } = 1.0;
-        public double Beta { get; set; } = 2.0;
-        public double EvaporationRate { get; set; } = 0.5;
-        public double Q { get; set; } = 100.0;
+        public int Iterations { get; set; }
+        public int AntCount { get; set; } 
+        public double Alpha { get; set; }
+        public double Beta { get; set; } 
+        public double EvaporationRate { get; set; } 
+        public double Q { get; set; } 
     }
 }

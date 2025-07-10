@@ -6,7 +6,6 @@ using GroupPlanner.Domain.Entities;
 using GroupPlanner.Domain.Interfaces;
 using GroupPlanner.Infrastructure.Persistance.Repositories;
 using GroupPlanner.Infrastructure.Repositories;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
