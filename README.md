@@ -1,4 +1,4 @@
-This app was created for time management and task planning.
+
 Home site:
 ![image](https://github.com/user-attachments/assets/3cfb438f-8afc-4604-8d02-eeb6914b9cc3)
 
