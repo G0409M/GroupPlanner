@@ -73,13 +73,11 @@ namespace GroupPlanner.MVC.Controllers
         {
             var user = _userContext.GetCurrentUser();
 
-            // tasks: tylko nieukończone
             var tasks = await _taskRepository.GetAllByUserId(user.Id);
             var filteredTasks = tasks
                 .Where(t => t.ProgressStatus != ProgressStatus.Completed)
                 .ToList();
 
-            // subtasks: tylko te, które mają EstimatedTime - WorkedHours > 0
             var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
             var filteredSubtasks = subtasks
                 .Where(s => s.EstimatedTime - s.WorkedHours > 0)
@@ -90,14 +88,12 @@ namespace GroupPlanner.MVC.Controllers
                 })
                 .ToList();
 
-            // availability: tylko od dziś do przyszłości
             var availability = await _availabilityRepository.GetAllByUserId(user.Id);
             var today = DateTime.Today;
             var filteredAvailability = availability
                 .Where(a => a.Date >= today)
                 .ToList();
 
-            // mapowanie
             var taskDtos = _mapper.Map<List<TaskDto>>(filteredTasks);
             var subtaskDtos = _mapper.Map<List<SubtaskDto>>(filteredSubtasks);
             var availabilityDtos = _mapper.Map<List<DailyAvailabilityDto>>(filteredAvailability);
