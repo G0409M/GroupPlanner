@@ -1,153 +1,180 @@
 ﻿using GroupPlanner.Application.DailyAvailability;
 using GroupPlanner.Application.Subtask;
 using GroupPlanner.Application.Task;
+using GroupPlanner.Domain.Entities;
+
 
 namespace GroupPlanner.Application.Algorithms
-{
-    
-    public static class ScheduleEvaluator
     {
-        public static double Evaluate(List<ScheduleEntryDto> schedule,List<SubtaskDto> subtasks,List<TaskDto> tasks,List<DailyAvailabilityDto> availability)
+        public static class ScheduleEvaluator
         {
-            int score = 0;
+            private const int BonusSubtaskExact = 40;
+            private const int PenaltySubtaskMismatch = 25;
 
-            var groupedBySubtask = schedule
-                .Where(h => h.Subtask != null)
-                .GroupBy(h => h.Subtask)
-                .ToDictionary(g => g.Key, g => g.OrderBy(h => h.Date).ToList());
+            private const int BonusOrderOk = 20;
+            private const int PenaltyOrderWrong = 80;
 
-            
-            foreach (var sub in subtasks)
+            private const int BonusDeadlineOk = 30;
+            private const int PenaltyDeadlineMissed = 60;
+
+            private const int BonusAvailabilityFit = 10;
+            private const int PenaltyOverbooked = 50;
+
+            private const int BonusFewSplitDays = 20;
+            private const int PenaltyManySplitDays = 20;
+
+            private const int PenaltyImbalanceFactor = 10;
+
+            private const int PenaltyUnassignedTask = 100;
+            private const int BonusPlanUsage = 100;
+
+            public static double Evaluate(
+                List<ScheduleEntryDto> schedule,
+                List<SubtaskDto> subtasks,
+                List<TaskDto> tasks,
+                List<DailyAvailabilityDto> availability)
             {
-                var entries = groupedBySubtask.ContainsKey(sub)
-                    ? groupedBySubtask[sub]
-                    : new List<ScheduleEntryDto>();
+                double score = 0;
 
-                int total = entries.Sum(e => e.Hours);
-                if (total == sub.EstimatedTime)
+                var taskDict = tasks.ToDictionary(t => t.EncodedName!);
+
+                var groupedBySubtaskId = schedule
+                    .Where(h => h.Subtask != null)
+                    .GroupBy(h => h.Subtask!.Id)
+                    .ToDictionary(g => g.Key, g => g.OrderBy(h => h.Date).ToList());
+
+                foreach (var sub in subtasks)
                 {
-                    score += 50; 
-                }
-                else
-                {
-                    score -= 20; 
-                }
-            }
+                    double weight = GetPriorityWeight(sub, taskDict);
+                    var entries = groupedBySubtaskId.GetValueOrDefault(sub.Id) ?? new List<ScheduleEntryDto>();
+                    int total = entries.Sum(e => e.Hours);
 
-            
-            var groupedByTask = subtasks.GroupBy(x => x.TaskEncodedName);
-            foreach (var taskGroup in groupedByTask)
-            {
-                var ordered = taskGroup.OrderBy(s => s.Order).ToList();
-                DateTime? lastEnd = null;
-
-                foreach (var sub in ordered)
-                {
-                    if (!groupedBySubtask.ContainsKey(sub))
-                        continue;
-
-                    var subEntries = groupedBySubtask[sub];
-                    var earliest = subEntries.First().Date;
-
-                    if (lastEnd.HasValue && earliest < lastEnd.Value)
-                    {
-                        score -= 100; 
-                    }
+                    if (total == sub.EstimatedTime)
+                        score += BonusSubtaskExact * weight;
                     else
+                        score -= PenaltySubtaskMismatch * weight;
+                }
+
+                var groupedByTask = subtasks.GroupBy(s => s.TaskEncodedName);
+                foreach (var taskGroup in groupedByTask)
+                {
+                    var ordered = taskGroup.OrderBy(s => s.Order).ToList();
+                    DateTime? lastEnd = null;
+
+                    foreach (var sub in ordered)
                     {
-                        score += 30; 
+                        var entries = groupedBySubtaskId.GetValueOrDefault(sub.Id);
+                        if (entries == null || entries.Count == 0)
+                            continue;
+
+                        double weight = GetPriorityWeight(sub, taskDict);
+                        var earliest = entries.First().Date;
+                        var latest = entries.Last().Date;
+
+                        if (lastEnd.HasValue && earliest < lastEnd.Value)
+                            score -= PenaltyOrderWrong * weight;
+                        else
+                            score += BonusOrderOk * weight;
+
+                        lastEnd = latest;
+                    }
+                }
+
+                foreach (var task in tasks)
+                {
+                    double weight = GetPriorityWeight(task.Priority);
+                    var taskEntries = schedule
+                        .Where(e => e.Subtask != null && e.Subtask.TaskEncodedName == task.EncodedName)
+                        .ToList();
+
+                    if (!taskEntries.Any())
+                    {
+                        score -= PenaltyUnassignedTask * weight;
+                        continue;
                     }
 
-                    lastEnd = subEntries.Last().Date;
+                    var maxDate = taskEntries.Max(e => e.Date);
+                    if (task.Deadline.HasValue && maxDate > task.Deadline.Value)
+                        score -= PenaltyDeadlineMissed * weight;
+                    else
+                        score += BonusDeadlineOk * weight;
                 }
-            }
 
-            
-            foreach (var task in tasks)
-            {
-                var taskEntries = schedule
-                    .Where(e => e.Subtask != null && e.Subtask.TaskEncodedName == task.EncodedName)
+                var dayStats = schedule
+                    .GroupBy(e => e.Date)
+                    .Select(g => new
+                    {
+                        Date = g.Key,
+                        Used = g.Sum(e => e.Hours),
+                        Available = availability.FirstOrDefault(a => a.Date == g.Key)?.AvailableHours ?? 0
+                    })
                     .ToList();
 
-                if (!taskEntries.Any())
+                foreach (var day in dayStats)
                 {
-                    score -= 100; 
-                    continue;
+                    if (day.Used > day.Available)
+                        score -= PenaltyOverbooked;
+                    else
+                        score += BonusAvailabilityFit;
                 }
 
-                var maxDate = taskEntries.Max(e => e.Date);
-                if (task.Deadline.HasValue && maxDate > task.Deadline.Value)
+                foreach (var sub in subtasks)
                 {
-                    score -= 50;
+                    var entries = groupedBySubtaskId.GetValueOrDefault(sub.Id) ?? new List<ScheduleEntryDto>();
+                    var uniqueDays = entries.Select(e => e.Date).Distinct().Count();
+
+                    if (uniqueDays <= 2)
+                        score += BonusFewSplitDays;
+                    else if (uniqueDays <= 4)
+                        score += BonusFewSplitDays / 2;
+                    else
+                        score -= PenaltyManySplitDays;
                 }
-                else
+
+                if (dayStats.Any())
                 {
-                    score += 20;
+                    var avgLoad = dayStats.Average(x => x.Available > 0 ? (double)x.Used / x.Available : 0);
+                    var deviation = dayStats.Sum(x =>
+                    {
+                        double ratio = x.Available > 0 ? (double)x.Used / x.Available : 0;
+                        return Math.Abs(ratio - avgLoad);
+                    });
+
+                    score -= deviation * PenaltyImbalanceFactor;
                 }
+
+                var totalAvailable = availability.Sum(a => a.AvailableHours);
+                var totalUsed = schedule.Sum(s => s.Hours);
+                if (totalAvailable > 0)
+                {
+                    var usageRatio = (double)totalUsed / totalAvailable;
+                    score += usageRatio * BonusPlanUsage;
+                }
+
+                return score;
             }
-
-            
-            var dayStats = schedule
-                .GroupBy(e => e.Date)
-                .Select(g => new
-                {
-                    Date = g.Key,
-                    Used = g.Sum(e => e.Hours),
-                    Available = availability.FirstOrDefault(a => a.Date == g.Key)?.AvailableHours ?? 0
-                })
-                .ToList();
-
-            foreach (var day in dayStats)
+            private static double GetPriorityWeight(SubtaskDto subtask, Dictionary<string, TaskDto> taskDict)
             {
-                if (day.Used > day.Available)
+                if (subtask.TaskEncodedName != null && taskDict.TryGetValue(subtask.TaskEncodedName, out var task))
                 {
-                    score -= 100; 
+                    return GetPriorityWeight(task.Priority);
                 }
-                else
-                {
-                    score += 10; 
-                }
+
+                return 1.0;
             }
 
-            
-            foreach (var sub in subtasks)
+            private static double GetPriorityWeight(TaskPriority priority)
             {
-                var entries = groupedBySubtask.ContainsKey(sub)
-                    ? groupedBySubtask[sub]
-                    : new List<ScheduleEntryDto>();
-
-                var uniqueDays = entries.Select(e => e.Date).Distinct().Count();
-
-                if (uniqueDays <= 2)
+                return priority switch
                 {
-                    score += 30; 
-                }
-                else if (uniqueDays <= 4)
-                {
-                    score += 10; 
-                }
-                else
-                {
-                    score -= 20;
-                }
+                    TaskPriority.Critical => 2.0,
+                    TaskPriority.High => 1.5,
+                    TaskPriority.Medium => 1.0,
+                    TaskPriority.Low => 0.5,
+                    _ => 1.0
+                };
             }
-
-           
-            if (dayStats.Any())
-            {
-                var avgLoad = dayStats.Average(x => (double)x.Used / x.Available);
-                var deviation = dayStats.Sum(x => Math.Abs((double)x.Used / x.Available - avgLoad));
-                score -= (int)(deviation * 10);
-            }
-
-            return score;
         }
-
-
-
-    }
-
-
-
-
 }
+
+

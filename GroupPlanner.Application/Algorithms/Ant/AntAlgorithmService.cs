@@ -14,214 +14,268 @@ namespace GroupPlanner.Application.Algorithms.Ant
         public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities,AntAlgorithmParameters parameters,
                     Func<int, double, System.Threading.Tasks.Task>? reportProgress = null)
         {
-            
-            var pheromone = new Dictionary<(string sub, DateTime d), double>();
-            foreach (var sub in subtasks)
-                foreach (var day in availabilities)
-                    pheromone[(sub.TaskEncodedName ?? "", day.Date)] = 1.0;
-
+            var pheromone = InitializePheromones(subtasks, availabilities);
             double bestScore = double.MinValue;
-            List<ScheduleEntryDto>? bestSchedule = null;
+            List<ScheduleEntryDto> bestSchedule = null!;
             var scoreHistory = new List<double>();
 
-            for (int iter = 0; iter < parameters.Iterations; iter++)
+            for (int iteration = 0; iteration < parameters.Iterations; iteration++)
             {
-                var solutions = new List<List<ScheduleEntryDto>>();
-                var scores = new List<double>();
+                var antSchedules = new List<List<ScheduleEntryDto>>();
 
-                double q0 = 0.2 + 0.4 * ((double)iter / (parameters.Iterations - 1));
-
-                for (int k = 0; k < parameters.AntCount; k++)
+                for (int ant = 0; ant < parameters.AntCount; ant++)
                 {
-                    var schedule = BuildAntSchedule(
-                        pheromone,
-                        subtasks,
-                        availabilities,
-                        tasks,
-                        parameters.Alpha,
-                        parameters.Beta,
-                        q0,
-                        _random
-                    );
-
-                    var score = ScheduleEvaluator.Evaluate(schedule, subtasks, tasks, availabilities);
-                    solutions.Add(schedule);
-                    scores.Add(score);
-
-                    if (score > bestScore || bestSchedule == null)
-                    {
-                        bestScore = score;
-                        bestSchedule = schedule;
-                    }
+                    var schedule = ConstructSolution(subtasks, availabilities, tasks, pheromone, parameters.Alpha, parameters.Beta);
+                    antSchedules.Add(schedule);
                 }
 
-                
-                UpdatePheromones(
-                    pheromone,
-                    solutions,
-                    scores,
-                    parameters.Q,         
-                    parameters.EvaporationRate, 
-                    availabilities
-                );
+                var evaluated = antSchedules
+                    .Select(s => new EvaluatedSchedule
+                    {
+                        Schedule = s,
+                        Score = ScheduleEvaluator.Evaluate(s, subtasks, tasks, availabilities)
+                    })
+                    .OrderByDescending(x => x.Score)
+                    .ToList();
 
-                scoreHistory.Add(bestScore);
+                var bestInIteration = evaluated.First();
+                scoreHistory.Add(Math.Max(bestScore, scoreHistory.LastOrDefault()));
+
+
+                if (bestInIteration.Score > bestScore)
+                {
+                    bestScore = bestInIteration.Score;
+                    bestSchedule = bestInIteration.Schedule.Select(CloneScheduleEntry).ToList();
+                }
+
+                EvaporatePheromones(pheromone, parameters.EvaporationRate);
+                UpdatePheromones(pheromone, evaluated, parameters.Q);
+
                 if (reportProgress != null)
-                    await reportProgress(iter + 1, bestScore);
+                    await reportProgress(iteration + 1, bestInIteration.Score);
             }
 
-            bestSchedule ??= new List<ScheduleEntryDto>();
             return new AlgorithmRunResultDto
             {
+
                 BestScore = bestScore,
-                Schedule = bestSchedule,
+                Schedule = bestSchedule!,
                 ScoreHistoryJson = JsonConvert.SerializeObject(scoreHistory),
                 ParametersJson = JsonConvert.SerializeObject(parameters)
             };
         }
 
-
-        
-        private List<ScheduleEntryDto> BuildAntSchedule(Dictionary<(string sub, DateTime d), double> pheromone, List<SubtaskDto> subs,List<DailyAvailabilityDto> av,
-        List<TaskDto> tasks,double alpha, double beta,double q0, Random rnd)
+        private List<ScheduleEntryDto> ConstructSolution(List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities,
+            List<TaskDto> tasks, Dictionary<(int subtaskId, DateTime date), double> pheromone, double alpha, double beta)
         {
             var schedule = new List<ScheduleEntryDto>();
-            var days = av.Select(a => new AvailableDay { Date = a.Date, HoursLeft = a.AvailableHours })
-                         .OrderBy(a => a.Date)
-                         .ToDictionary(d => d.Date);
+            var random = _random;
 
-            foreach (var sub in subs.OrderBy(_ => rnd.Next()))
-            {
-                int remaining = sub.EstimatedTime;
-                var deadline = tasks.First(t => t.EncodedName == sub.TaskEncodedName).Deadline
-                               ?? DateTime.MaxValue;
-
-                while (remaining > 0)
+            var availableDays = availabilities
+                .OrderBy(a => a.Date)
+                .Select(a => new AvailableDay
                 {
-                    var candidates = days.Values.Where(d => d.HoursLeft > 0).ToList();
-                    if (!candidates.Any()) break;
+                    Date = a.Date,
+                    HoursLeft = a.AvailableHours
+                })
+                .ToList();
 
-                    // Oblicz probilność z uwzględnieniem feromonów + heurystyki
-                    var scored = new List<(AvailableDay day, double p)>();
-                    double sum = 0;
-                    foreach (var d in candidates)
-                    {
-                        var tau = pheromone.GetValueOrDefault((sub.TaskEncodedName!, d.Date), 1.0);
-                        double dist = Math.Abs((d.Date - deadline).TotalDays) + 1;
-                        double eta = (1.0 / dist); // zostawiamy prostą heurystykę
-                        double val = Math.Pow(tau, alpha) * Math.Pow(eta, beta);
-                        scored.Add((d, val));
-                        sum += val;
-                    }
+            var taskMap = tasks.ToDictionary(t => t.EncodedName!);
 
-                    // Wylosuj z prawdopodobieństwem lub greedy
-                    double q = rnd.NextDouble();
-                    AvailableDay chosen;
-                    if (q < q0)
+            var subtasksByOrder = subtasks
+                .GroupBy(s => s.Order)
+                .OrderBy(g => g.Key)
+                .Select(g => g.OrderBy(_ => random.Next()).ToList()) 
+                .ToList();
+
+            foreach (var level in subtasksByOrder)
+            {
+                foreach (var subtask in level)
+                {
+                    if (subtask.TaskEncodedName == null)
+                        continue;
+
+                    var task = taskMap[subtask.TaskEncodedName];
+                    var deadline = task.Deadline ?? DateTime.MaxValue;
+                    int remaining = subtask.EstimatedTime;
+
+                    while (remaining > 0)
                     {
-                        chosen = scored.OrderByDescending(x => x.p).First().day;
-                    }
-                    else
-                    {
-                        // roulette
-                        double r = rnd.NextDouble() * sum, acc = 0;
-                        chosen = scored.Last().day;
-                        foreach (var x in scored)
+                        var candidateDays = availableDays
+                            .Where(d => d.Date <= deadline && d.HoursLeft > 0)
+                            .ToList();
+
+                        if (!candidateDays.Any())
+                            break;
+
+                        var probabilities = new List<(AvailableDay day, double probability)>();
+                        foreach (var day in candidateDays)
                         {
-                            acc += x.p;
-                            if (r <= acc) { chosen = x.day; break; }
+                            double tau = pheromone.GetValueOrDefault((subtask.Id, day.Date), 1.0);
+                            double eta = (double)day.HoursLeft / subtask.EstimatedTime + 0.01; 
+
+                            double value = Math.Pow(tau, alpha) * Math.Pow(eta, beta);
+                            probabilities.Add((day, value));
+                        }
+
+                        double total = probabilities.Sum(p => p.probability);
+                        double r = random.NextDouble() * total;
+
+                        double cumulative = 0;
+                        AvailableDay? chosenDay = null;
+                        foreach (var (day, prob) in probabilities)
+                        {
+                            cumulative += prob;
+                            if (r <= cumulative)
+                            {
+                                chosenDay = day;
+                                break;
+                            }
+                        }
+
+                        if (chosenDay == null)
+                            chosenDay = probabilities.First().day;
+
+                        int assignable = Math.Min(remaining, chosenDay.HoursLeft);
+                        int assigned = random.Next(1, assignable + 1);
+
+                        schedule.Add(new ScheduleEntryDto
+                        {
+                            Date = chosenDay.Date,
+                            Hours = assigned,
+                            Subtask = subtask
+                        });
+
+                        chosenDay.HoursLeft -= assigned;
+                        remaining -= assigned;
+                    }
+
+                    if (remaining > 0)
+                    {
+                        var fallback = availableDays.Where(d => d.HoursLeft > 0).OrderBy(_ => random.Next()).ToList();
+                        foreach (var day in fallback)
+                        {
+                            if (remaining <= 0) break;
+                            int assigned = Math.Min(remaining, 4);
+                            schedule.Add(new ScheduleEntryDto
+                            {
+                                Date = day.Date,
+                                Hours = assigned,
+                                Subtask = subtask
+                            });
+                            day.HoursLeft -= assigned;
+                            remaining -= assigned;
                         }
                     }
-
-                    int assign = Math.Min(remaining, chosen.HoursLeft);
-                    schedule.Add(new ScheduleEntryDto
-                    {
-                        Date = chosen.Date,
-                        Hours = assign,
-                        Subtask = sub
-                    });
-                    chosen.HoursLeft -= assign;
-                    remaining -= assign;
                 }
             }
 
-            // (Twój RepairSchedule bez zmian)
-            RepairSchedule(schedule, days, av);
-            return schedule.OrderBy(x => x.Date)
-                           .ThenBy(x => x.Subtask?.Order ?? int.MaxValue)
-                           .ToList();
+            return schedule
+                .OrderBy(e => e.Date)
+                .ThenBy(e => e.Subtask?.TaskEncodedName)
+                .ThenBy(e => e.Subtask?.Order)
+                .ToList();
         }
 
-
-        
-        private void RepairSchedule(List<ScheduleEntryDto> sched,Dictionary<DateTime, AvailableDay> work, List<DailyAvailabilityDto> av)
+        private Dictionary<(int subtaskId, DateTime date), double> InitializePheromones(List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities)
         {
-            
-            foreach (var g in sched.GroupBy(s => s.Date))
+            var pheromones = new Dictionary<(int, DateTime), double>();
+
+            foreach (var subtask in subtasks)
             {
-                double used = g.Sum(x => x.Hours);
-                double cap = av.First(d => d.Date == g.Key).AvailableHours;
-                if (used <= cap) continue;                           
-
-               
-                foreach (var entry in g.OrderBy(e => e.Hours).ToList())
+                foreach (var day in availabilities)
                 {
-                    
-                    var target = work.Values.FirstOrDefault(d => d.HoursLeft >= entry.Hours);
-                    if (target == null) break;                      
-
-                    work[target.Date].HoursLeft -= entry.Hours;
-                    work[entry.Date].HoursLeft += entry.Hours;      
-                    entry.Date = target.Date;
-                    used -= entry.Hours;
-                    if (used <= cap) break;
+                    pheromones[(subtask.Id, day.Date)] = 1.0;
                 }
             }
 
-            
-            foreach (var (sub, h) in _unplaced)
-            {
-                int left = h;
-                while (left > 0)
-                {
-                    var slot = work.Values.FirstOrDefault(d => d.HoursLeft > 0);
-                    if (slot == null) break;
-
-                    int assign = Math.Min(left, slot.HoursLeft);
-                    sched.Add(new ScheduleEntryDto { Date = slot.Date, Hours = assign, Subtask = sub });
-                    slot.HoursLeft -= assign;
-                    left -= assign;
-                }
-            }
-            _unplaced.Clear();
+            return pheromones;
         }
 
-       
-        private readonly List<(SubtaskDto sub, int hours)> _unplaced = new();
-
-        private void UpdatePheromones(Dictionary<(string sub, DateTime d), double> pher,List<List<ScheduleEntryDto>> ants,List<double> scores,
-        double Q, double evap,List<DailyAvailabilityDto> av)
+        private void EvaporatePheromones(Dictionary<(int subtaskId, DateTime date), double> pheromones, double evaporationRate)
         {
-            const double min = 0.1, max = 5.0;
-            
-            foreach (var key in pher.Keys.ToList())
-                pher[key] = Math.Max(min, pher[key] * (1 - evap));
+            var keys = pheromones.Keys.ToList();
 
-            
-            for (int i = 0; i < ants.Count; i++)
+            foreach (var key in keys)
             {
-                double delta = Q * scores[i];
-               
-                foreach (var e in ants[i])
+                pheromones[key] *= (1.0 - evaporationRate);
+
+                
+                if (pheromones[key] < 0.0001)
                 {
-                    
-                    var key = (e.Subtask!.TaskEncodedName!, e.Date);
-                    pher[key] = Math.Min(max, pher[key] + delta);
+                    pheromones[key] = 0.0001;
                 }
             }
         }
 
+        private void UpdatePheromones(Dictionary<(int subtaskId, DateTime date), double> pheromones,List<EvaluatedSchedule> evaluatedSchedules, double Q)
+        {
+            var topSchedules = evaluatedSchedules.Take(3);
 
+            foreach (var eval in topSchedules)
+            {
+                var schedule = (List<ScheduleEntryDto>)eval.Schedule;
+                double score = (double)eval.Score;
 
+                foreach (var entry in schedule.Where(e => e.Subtask != null))
+                {
+                    var key = (entry.Subtask!.Id, entry.Date);
+
+                    double delta = Q / Math.Max(score, 1.0); 
+                    pheromones[key] += delta;
+                }
+            }
+        }
+
+        private DateTime SelectDayByRoulette(List<DateTime> days,List<double> pheromones,List<double> heuristics,double alpha,double beta, double randomChance = 0.1)
+        {
+            if (days.Count != pheromones.Count || days.Count != heuristics.Count)
+                throw new ArgumentException("All lists must be of equal length");
+
+            if (_random.NextDouble() < randomChance)
+                return days[_random.Next(days.Count)];
+
+            var weights = new List<double>();
+            for (int i = 0; i < days.Count; i++)
+            {
+                double pheromone = pheromones[i];
+                double heuristic = heuristics[i];
+                double weight = Math.Pow(pheromone, alpha) * Math.Pow(heuristic, beta);
+                weights.Add(weight);
+            }
+
+            double total = weights.Sum();
+            if (total == 0)
+                return days[_random.Next(days.Count)];
+
+            double r = _random.NextDouble();
+            double cumulative = 0.0;
+
+            for (int i = 0; i < days.Count; i++)
+            {
+                cumulative += weights[i] / total;
+                if (r <= cumulative)
+                    return days[i];
+            }
+
+            return days.Last(); 
+        }
+
+        private ScheduleEntryDto CloneScheduleEntry(ScheduleEntryDto entry)
+        {
+            return new ScheduleEntryDto
+            {
+                Date = entry.Date,
+                Hours = entry.Hours,
+                Subtask = entry.Subtask
+            };
+        }
+        private class EvaluatedSchedule
+        {
+            public List<ScheduleEntryDto> Schedule { get; set; } = new();
+            public double Score { get; set; }
+        }
     }
+    
+
 }

@@ -16,26 +16,26 @@ namespace GroupPlanner.Application.AlgorithmResult
 
         // Genetic
         [Range(1, int.MaxValue, ErrorMessage = "Population size must be greater than zero.")]
-        public int PopulationSize { get; set; } = 20;
+        public int PopulationSize { get; set; } = 100;
 
         [Range(1, int.MaxValue, ErrorMessage = "Number of generations must be greater than zero.")]
-        public int Generations { get; set; } = 50;
+        public int Generations { get; set; } = 200;
 
         [Range(0.0, 1.0, ErrorMessage = "Crossover probability must be between 0 and 1.")]
         public double CrossoverProbability { get; set; } = 0.7;
 
         [Range(0.0, 1.0, ErrorMessage = "Mutation probability must be between 0 and 1.")]
-        public double MutationProbability { get; set; } = 0.1;
+        public double MutationProbability { get; set; } = 0.3;
 
         [Range(1, int.MaxValue, ErrorMessage = "Tournament size must be greater than zero.")]
         public int TournamentSize { get; set; } = 3;
 
         // Ant Colony
         [Range(1, int.MaxValue, ErrorMessage = "Number of ants must be greater than zero.")]
-        public int AntCount { get; set; } = 10;
+        public int AntCount { get; set; } = 50;
 
         [Range(1, int.MaxValue, ErrorMessage = "Number of iterations must be greater than zero.")]
-        public int Iterations { get; set; } = 50;
+        public int Iterations { get; set; } = 200;
 
         [Range(0.01, double.MaxValue, ErrorMessage = "Alpha must be greater than zero.")]
         public double Alpha { get; set; } = 1.0;
@@ -44,10 +44,10 @@ namespace GroupPlanner.Application.AlgorithmResult
         public double Beta { get; set; } = 2.0;
 
         [Range(0.0, 1.0, ErrorMessage = "Evaporation rate must be between 0 and 1.")]
-        public double EvaporationRate { get; set; } = 0.5;
+        public double EvaporationRate { get; set; } = 0.2;
 
         [Range(0.01, double.MaxValue, ErrorMessage = "Q must be greater than zero.")]
-        public double Q { get; set; } = 100.0;
+        public double Q { get; set; } = 20.0;
     }
 
 
