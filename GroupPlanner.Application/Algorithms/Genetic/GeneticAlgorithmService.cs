@@ -11,8 +11,9 @@ namespace GroupPlanner.Application.Algorithms.Genetic
     {
         private readonly Random random = new Random();
 
-        public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availability,
-                        GeneticAlgorithmParameters parameters,Func<int, double, System.Threading.Tasks.Task> progressCallback)
+        public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,
+            List<DailyAvailabilityDto> availability,
+            GeneticAlgorithmParameters parameters,Func<int, double, System.Threading.Tasks.Task> progressCallback)
         {
             var random = new Random();
 
@@ -22,7 +23,6 @@ namespace GroupPlanner.Application.Algorithms.Genetic
             double mutationProb = parameters.MutationProbability;
             int tournamentSize = parameters.TournamentSize;
 
-            // inicjalna populacja
             var population = GenerateInitialPopulation(populationSize, subtasks, availability, tasks);
 
             double bestScore = double.MinValue;
@@ -76,9 +76,7 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                     newPopulation.Add(child);
                 }
 
-                // elitaryzm
                 newPopulation.Add(bestInGen.Schedule.Select(CloneScheduleEntry).ToList());
-
                 population = newPopulation;
             }
 
@@ -90,12 +88,7 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                 {
                     if (availableHoursPerDay.ContainsKey(entry.Date))
                     {
-                        availableHoursPerDay[entry.Date] -= entry.Hours;
-                        if (availableHoursPerDay[entry.Date] < 0)
-                        {
-                            // log lub rzucenie wyjątku
-                            Console.WriteLine($"[WARN] Day {entry.Date} overbooked below zero hours.");
-                        }
+                        availableHoursPerDay[entry.Date] -= entry.Hours;                      
                     }
                 }
             }
@@ -112,7 +105,8 @@ namespace GroupPlanner.Application.Algorithms.Genetic
         }
 
 
-        private List<List<ScheduleEntryDto>> GenerateInitialPopulation(int size, List<SubtaskDto> subtasks, List<DailyAvailabilityDto> availability, List<TaskDto> tasks)
+        private List<List<ScheduleEntryDto>> GenerateInitialPopulation(int size, List<SubtaskDto> subtasks,
+            List<DailyAvailabilityDto> availability, List<TaskDto> tasks)
         {
             var pop = new List<List<ScheduleEntryDto>>();
             for (int i = 0; i < size; i++)
@@ -120,7 +114,8 @@ namespace GroupPlanner.Application.Algorithms.Genetic
             return pop;
         }
 
-        private List<ScheduleEntryDto> GenerateRandomSchedule(List<SubtaskDto> subtasks, List<DailyAvailabilityDto> availability, List<TaskDto> tasks)
+        private List<ScheduleEntryDto> GenerateRandomSchedule(List<SubtaskDto> subtasks,
+            List<DailyAvailabilityDto> availability, List<TaskDto> tasks)
         {
             var schedule = new List<ScheduleEntryDto>();
 
@@ -212,15 +207,16 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                 .ToList();
         }
 
-        private List<ScheduleEntryDto> TournamentSelection(List<EvaluatedSchedule> evaluated,int tournamentSize,Random random)
+        private List<ScheduleEntryDto> TournamentSelection(List<EvaluatedSchedule> evaluated,int tournamentSize,
+            Random random)
         {
             var candidates = evaluated.OrderByDescending(_ => random.Next()).Take(tournamentSize).ToList();
 
             return candidates.OrderByDescending(x => x.Score).First().Schedule;
         }
 
-        private List<ScheduleEntryDto> Crossover(List<ScheduleEntryDto> parent1,List<ScheduleEntryDto> parent2,List<SubtaskDto> subtasks,
-                List<DailyAvailabilityDto> availability,List<TaskDto> tasks,Random random)
+        private List<ScheduleEntryDto> Crossover(List<ScheduleEntryDto> parent1,List<ScheduleEntryDto> parent2,
+            List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availability,List<TaskDto> tasks,Random random)
         {
             var offspring = new List<ScheduleEntryDto>();
 
@@ -233,19 +229,11 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                 .OrderBy(a => a.Date)
                 .ToList();
 
-            var taskMap = tasks
-                .Where(t => t.EncodedName != null)
-                .ToDictionary(t => t.EncodedName!);
+            var taskMap = tasks.Where(t => t.EncodedName != null).ToDictionary(t => t.EncodedName!);
 
-            var groups1 = parent1
-                .Where(e => e.Subtask != null)
-                .GroupBy(e => e.Subtask)
-                .ToDictionary(g => g.Key, g => g.ToList());
+            var groups1 = parent1.Where(e => e.Subtask != null).GroupBy(e => e.Subtask).ToDictionary(g => g.Key, g => g.ToList());
 
-            var groups2 = parent2
-                .Where(e => e.Subtask != null)
-                .GroupBy(e => e.Subtask)
-                .ToDictionary(g => g.Key, g => g.ToList());
+            var groups2 = parent2.Where(e => e.Subtask != null).GroupBy(e => e.Subtask).ToDictionary(g => g.Key, g => g.ToList());
 
             var shuffledSubtasks = subtasks.OrderBy(_ => random.Next()).ToList();
 
@@ -329,12 +317,7 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                             Subtask = subtask
                         });
                         remaining -= assigned;
-                    }
-
-                    if (remaining > 0)
-                    {
-                        Console.WriteLine($"[WARN] Crossover: could not assign {remaining}h for subtask {subtask.Description}");
-                    }
+                    }                                      
                 }
             }
 
@@ -346,11 +329,11 @@ namespace GroupPlanner.Application.Algorithms.Genetic
         }
 
 
-        private void Mutate(List<ScheduleEntryDto> schedule,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availability,Random random)
+        private void Mutate(List<ScheduleEntryDto> schedule,List<SubtaskDto> subtasks,
+            List<DailyAvailabilityDto> availability,Random random)
         {
             
-            var dayHoursLeft = availability
-                .ToDictionary(a => a.Date, a => a.AvailableHours);
+            var dayHoursLeft = availability.ToDictionary(a => a.Date, a => a.AvailableHours);
 
            
             foreach (var s in schedule.Where(x => x.Subtask != null))
@@ -363,34 +346,23 @@ namespace GroupPlanner.Application.Algorithms.Genetic
 
             for (int i = 0; i < mutationCount; i++)
             {
-                var entry = taskSubentries[random.Next(taskSubentries.Count)];
-
-                
+                var entry = taskSubentries[random.Next(taskSubentries.Count)];                
                 dayHoursLeft[entry.Date] += entry.Hours;
-                schedule.Remove(entry);
-
-               
-                var candidateDays = dayHoursLeft
-                    .Where(kv => kv.Value > 0)
-                    .Select(kv => kv.Key)
-                    .ToList();
+                schedule.Remove(entry);               
+                var candidateDays = dayHoursLeft.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList();
 
                 if (candidateDays.Any())
                 {
                     var newDay = candidateDays[random.Next(candidateDays.Count)];
                     int available = dayHoursLeft[newDay];
                     int hoursToAssign = Math.Min(available, entry.Hours);
-
                     schedule.Add(new ScheduleEntryDto
                     {
                         Date = newDay,
                         Hours = hoursToAssign,
                         Subtask = entry.Subtask
                     });
-
-                    dayHoursLeft[newDay] -= hoursToAssign;
-
-                    
+                    dayHoursLeft[newDay] -= hoursToAssign;                    
                     int leftover = entry.Hours - hoursToAssign;
                     if (leftover > 0)
                     {
@@ -404,8 +376,7 @@ namespace GroupPlanner.Application.Algorithms.Genetic
                     }
                 }
                 else
-                {
-                    
+                {                    
                     schedule.Add(entry);
                     dayHoursLeft[entry.Date] -= entry.Hours;
                 }

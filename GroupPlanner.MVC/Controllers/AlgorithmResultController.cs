@@ -74,9 +74,7 @@ namespace GroupPlanner.MVC.Controllers
             var user = _userContext.GetCurrentUser();
 
             var tasks = await _taskRepository.GetAllByUserId(user.Id);
-            var filteredTasks = tasks
-                .Where(t => t.ProgressStatus != ProgressStatus.Completed)
-                .ToList();
+            var filteredTasks = tasks.Where(t => t.ProgressStatus != ProgressStatus.Completed).ToList();
 
             var subtasks = await _subtaskRepository.GetAllByUserId(user.Id);
             var filteredSubtasks = subtasks
@@ -90,9 +88,7 @@ namespace GroupPlanner.MVC.Controllers
 
             var availability = await _availabilityRepository.GetAllByUserId(user.Id);
             var today = DateTime.Today;
-            var filteredAvailability = availability
-                .Where(a => a.Date >= today)
-                .ToList();
+            var filteredAvailability = availability.Where(a => a.Date >= today).ToList();
 
             var taskDtos = _mapper.Map<List<TaskDto>>(filteredTasks);
             var subtaskDtos = _mapper.Map<List<SubtaskDto>>(filteredSubtasks);

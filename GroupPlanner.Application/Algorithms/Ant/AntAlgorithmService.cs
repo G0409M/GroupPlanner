@@ -11,7 +11,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
     {
         private readonly Random _random = new();
 
-        public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities,AntAlgorithmParameters parameters,
+        public async Task<AlgorithmRunResultDto> RunAsync(List<TaskDto> tasks,List<SubtaskDto> subtasks,
+            List<DailyAvailabilityDto> availabilities,AntAlgorithmParameters parameters,
                     Func<int, double, System.Threading.Tasks.Task>? reportProgress = null)
         {
             var pheromone = InitializePheromones(subtasks, availabilities);
@@ -26,6 +27,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 for (int ant = 0; ant < parameters.AntCount; ant++)
                 {
                     var schedule = ConstructSolution(subtasks, availabilities, tasks, pheromone, parameters.Alpha, parameters.Beta);
+
                     antSchedules.Add(schedule);
                 }
 
@@ -35,8 +37,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                         Schedule = s,
                         Score = ScheduleEvaluator.Evaluate(s, subtasks, tasks, availabilities)
                     })
-                    .OrderByDescending(x => x.Score)
-                    .ToList();
+                    .OrderByDescending(x => x.Score).ToList();
 
                 var bestInIteration = evaluated.First();
                 scoreHistory.Add(Math.Max(bestScore, scoreHistory.LastOrDefault()));
@@ -64,9 +65,9 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 ParametersJson = JsonConvert.SerializeObject(parameters)
             };
         }
-
-        private List<ScheduleEntryDto> ConstructSolution(List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities,
-            List<TaskDto> tasks, Dictionary<(int subtaskId, DateTime date), double> pheromone, double alpha, double beta)
+        private List<ScheduleEntryDto> ConstructSolution(List<SubtaskDto> subtasks,
+            List<DailyAvailabilityDto> availabilities, List<TaskDto> tasks, 
+            Dictionary<(int subtaskId, DateTime date), double> pheromone, double alpha, double beta)
         {
             var schedule = new List<ScheduleEntryDto>();
             var random = _random;
@@ -77,16 +78,12 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 {
                     Date = a.Date,
                     HoursLeft = a.AvailableHours
-                })
-                .ToList();
+                }).ToList();
 
             var taskMap = tasks.ToDictionary(t => t.EncodedName!);
 
-            var subtasksByOrder = subtasks
-                .GroupBy(s => s.Order)
-                .OrderBy(g => g.Key)
-                .Select(g => g.OrderBy(_ => random.Next()).ToList()) 
-                .ToList();
+            var subtasksByOrder = subtasks.GroupBy(s => s.Order).OrderBy(g => g.Key)
+                .Select(g => g.OrderBy(_ => random.Next()).ToList()).ToList();
 
             foreach (var level in subtasksByOrder)
             {
@@ -102,8 +99,7 @@ namespace GroupPlanner.Application.Algorithms.Ant
                     while (remaining > 0)
                     {
                         var candidateDays = availableDays
-                            .Where(d => d.Date <= deadline && d.HoursLeft > 0)
-                            .ToList();
+                            .Where(d => d.Date <= deadline && d.HoursLeft > 0).ToList();
 
                         if (!candidateDays.Any())
                             break;
@@ -152,21 +148,24 @@ namespace GroupPlanner.Application.Algorithms.Ant
 
                     if (remaining > 0)
                     {
-                        var fallback = availableDays.Where(d => d.HoursLeft > 0).OrderBy(_ => random.Next()).ToList();
+                        var fallback = availableDays.OrderBy(_ => random.Next()).ToList(); 
                         foreach (var day in fallback)
                         {
                             if (remaining <= 0) break;
-                            int assigned = Math.Min(remaining, 4);
+
+                            int assigned = remaining; 
                             schedule.Add(new ScheduleEntryDto
                             {
                                 Date = day.Date,
                                 Hours = assigned,
                                 Subtask = subtask
                             });
+
                             day.HoursLeft -= assigned;
-                            remaining -= assigned;
+                            remaining = 0;
                         }
                     }
+
                 }
             }
 
@@ -177,7 +176,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
                 .ToList();
         }
 
-        private Dictionary<(int subtaskId, DateTime date), double> InitializePheromones(List<SubtaskDto> subtasks,List<DailyAvailabilityDto> availabilities)
+        private Dictionary<(int subtaskId, DateTime date), double> InitializePheromones(List<SubtaskDto> subtasks,
+            List<DailyAvailabilityDto> availabilities)
         {
             var pheromones = new Dictionary<(int, DateTime), double>();
 
@@ -192,7 +192,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
             return pheromones;
         }
 
-        private void EvaporatePheromones(Dictionary<(int subtaskId, DateTime date), double> pheromones, double evaporationRate)
+        private void EvaporatePheromones(Dictionary<(int subtaskId, DateTime date), double> pheromones,
+            double evaporationRate)
         {
             var keys = pheromones.Keys.ToList();
 
@@ -208,7 +209,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
             }
         }
 
-        private void UpdatePheromones(Dictionary<(int subtaskId, DateTime date), double> pheromones,List<EvaluatedSchedule> evaluatedSchedules, double Q)
+        private void UpdatePheromones(Dictionary<(int subtaskId, DateTime date), double> pheromones,
+            List<EvaluatedSchedule> evaluatedSchedules, double Q)
         {
             var topSchedules = evaluatedSchedules.Take(3);
 
@@ -227,7 +229,8 @@ namespace GroupPlanner.Application.Algorithms.Ant
             }
         }
 
-        private DateTime SelectDayByRoulette(List<DateTime> days,List<double> pheromones,List<double> heuristics,double alpha,double beta, double randomChance = 0.1)
+        private DateTime SelectDayByRoulette(List<DateTime> days,List<double> pheromones,
+            List<double> heuristics,double alpha,double beta, double randomChance = 0.1)
         {
             if (days.Count != pheromones.Count || days.Count != heuristics.Count)
                 throw new ArgumentException("All lists must be of equal length");
